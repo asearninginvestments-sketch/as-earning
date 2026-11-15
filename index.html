@@ -586,10 +586,12 @@
 
 <div id="loginGate"><div class="lg-card">
   <div class="mark">A.S</div><h2>A.S EARNING</h2><div class="tag">INVEST · EARN · GROW</div>
+  <div id="loginMain">
   <input id="loginId" placeholder="Login ID" autocomplete="username">
   <input id="loginPw" type="password" placeholder="Password" autocomplete="current-password">
   <button class="btn gold" id="loginBtn">Login</button>
   <div id="loginErr"></div>
+  </div>
 </div></div>
 <script src="supabase.min.js"></script>
 <script src="gsap.min.js"></script>
@@ -698,7 +700,7 @@ async function boot(){
   me = data.session.user;
   const { data: p } = await sb.from('profiles').select('*').eq('id', me.id).single();
   if(!p){ $('#loginErr').textContent = 'Account not set up. Contact admin.'; $('#loginGate').classList.add('show'); return; }
-  if(p.role !== 'employee'){ $('#loginErr').textContent = 'This is the employee page. Admins use the admin link.'; $('#loginGate').classList.add('show'); return; }
+  if(p.role !== 'employee'){ $('#loginGate').classList.add('show'); return; }
   if(!p.active){ $('#loginErr').textContent = 'Account deactivated. Contact admin.'; $('#loginGate').classList.add('show'); return; }
   profile = p;
   $('#userName').textContent = p.name; $('#userRole').textContent = 'Employee · ' + (p.login_id || '');

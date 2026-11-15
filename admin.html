@@ -586,10 +586,26 @@
 
 <div id="loginGate"><div class="lg-card">
   <div class="mark">A.S</div><h2>A.S EARNING</h2><div class="tag">INVEST · EARN · GROW</div>
+  <div id="loginMain">
   <input id="loginId" placeholder="Email" autocomplete="username">
   <input id="loginPw" type="password" placeholder="Password" autocomplete="current-password">
   <button class="btn gold" id="loginBtn">Login</button>
   <div id="loginErr"></div>
+  </div>
+  <div id="fpLinkWrap" style="margin-top:12px"><a href="#" id="fpLink" style="color:#EBC04C;font-size:12.5px">Forgot password?</a></div>
+  <div id="fpReq" style="display:none">
+    <input id="fpEmail" placeholder="Admin email" autocomplete="email">
+    <button class="btn gold" id="fpSend">Send reset link</button>
+    <div id="fpMsg" style="font-size:12.5px;min-height:16px;margin-top:8px"></div>
+    <div style="margin-top:8px"><a href="#" id="fpBack" style="color:#EBC04C;font-size:12.5px">Back to login</a></div>
+  </div>
+  <div id="fpNew" style="display:none">
+    <input id="npPw" type="password" placeholder="New password" autocomplete="new-password">
+    <input id="npPw2" type="password" placeholder="Repeat new password" autocomplete="new-password">
+    <button class="btn gold" id="npBtn">Set new password</button>
+    <div id="npMsg" style="font-size:12.5px;min-height:16px;margin-top:8px;color:#FF9B8A"></div>
+  </div>
+
 </div></div>
 <script src="supabase.min.js"></script>
 <script src="gsap.min.js"></script>
@@ -598,6 +614,7 @@
 const SB_URL = 'https://flqgoftvblxvwgwembcx.supabase.co';
 const SB_KEY = 'sb_publishable_JS-nPAF_pUw7Ea9Tkm9NkQ_QBUXVTUv';
 document.body.dataset.view = "admin";
+const _recHash = location.hash.includes('type=recovery');
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
 const $ = s => document.querySelector(s);
 const todayIST = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
@@ -715,12 +732,42 @@ async function createEmployee(){
 $('#neBtn').onclick = createEmployee;
 
 // ---- auth gate ----
+
+let recovering = false;
+function showGatePanel(which){
+  ['loginMain','fpLinkWrap','fpReq','fpNew'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = (id === which || (which === 'loginMain' && id === 'fpLinkWrap')) ? '' : 'none'; });
+}
+const _fp = setInterval(() => {
+  const link = document.getElementById('fpLink'); if(!link) return; clearInterval(_fp);
+  link.addEventListener('click', e => { e.preventDefault(); document.getElementById('fpEmail').value = document.getElementById('loginId').value || ''; showGatePanel('fpReq'); });
+  document.getElementById('fpBack').addEventListener('click', e => { e.preventDefault(); showGatePanel('loginMain'); });
+  document.getElementById('fpSend').addEventListener('click', async () => {
+    const em = document.getElementById('fpEmail').value.trim(), m = document.getElementById('fpMsg');
+    if(!em){ m.style.color = '#FF9B8A'; m.textContent = 'Enter the admin email.'; return; }
+    const { error } = await sb.auth.resetPasswordForEmail(em, { redirectTo: location.origin + location.pathname });
+    if(error){ m.style.color = '#FF9B8A'; m.textContent = error.message; }
+    else { m.style.color = '#7BE3A0'; m.textContent = 'Reset link sent \u2014 check the inbox, then open the link to set a new password.'; }
+  });
+  document.getElementById('npBtn').addEventListener('click', async () => {
+    const p1 = document.getElementById('npPw').value, p2 = document.getElementById('npPw2').value, m = document.getElementById('npMsg');
+    if(p1.length < 6){ m.textContent = 'Password must be at least 6 characters.'; return; }
+    if(p1 !== p2){ m.textContent = 'Passwords do not match.'; return; }
+    const { error } = await sb.auth.updateUser({ password: p1 });
+    if(error){ m.textContent = error.message; return; }
+    recovering = false; history.replaceState(null, '', location.pathname);
+    document.getElementById('loginGate').classList.remove('show'); showGatePanel('loginMain'); loadAll();
+  });
+  sb.auth.onAuthStateChange(ev => { if(ev === 'PASSWORD_RECOVERY'){ recovering = true; document.getElementById('loginGate').classList.add('show'); showGatePanel('fpNew'); } });
+}, 50);
+
 async function boot(){
+  if(_recHash || location.hash.includes('type=recovery')){ recovering = true; $('#loginGate').classList.add('show'); showGatePanel('fpNew'); return; }
   const { data } = await sb.auth.getSession();
+  if(recovering) return;
   if(!data.session){ $('#loginGate').classList.add('show'); return; }
   me = data.session.user;
   const { data: p } = await sb.from('profiles').select('*').eq('id', me.id).single();
-  if(!p || p.role !== 'admin'){ $('#loginErr').textContent = 'Admins only.'; $('#loginGate').classList.add('show'); return; }
+  if(!p || p.role !== 'admin'){ $('#loginGate').classList.add('show'); return; }
   $('#userName').textContent = p.name; $('#userRole').textContent = 'Admin';
   $('#userAva').textContent = initials(p.name);
   await loadAll();
