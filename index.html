@@ -503,6 +503,7 @@
     <section class="panel tile tasks-tile initial" id="aTasks">
       <div class="head"><h3>Tasks</h3><button class="icon-btn" style="display:none"><svg class="ph" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/></svg></button></div>
       <div id="aTaskList"></div>
+      <div class="trow"><div class="tic"><svg class="ph" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M222.37,158.46l-47.11-21.11-.13-.06a16,16,0,0,0-15.17,1.4,8.12,8.12,0,0,0-.75.56L134.87,160c-15.42-7.49-31.34-23.29-38.83-38.51l20.78-24.71c.2-.25.39-.5.57-.77a16,16,0,0,0,1.32-15.06l0-.12L97.54,33.64a16,16,0,0,0-16.62-9.52A56.26,56.26,0,0,0,32,80c0,79.4,64.6,144,144,144a56.26,56.26,0,0,0,55.88-48.92A16,16,0,0,0,222.37,158.46ZM176,208A128.14,128.14,0,0,1,48,80,40.2,40.2,0,0,1,82.87,40a.61.61,0,0,0,0,.12l21,47L83.2,111.86a6.13,6.13,0,0,0-.57.77,16,16,0,0,0-1,15.7c9.06,18.53,27.73,37.06,46.46,46.11a16,16,0,0,0,15.75-1.14,8.44,8.44,0,0,0,.74-.56L168.89,152l47,21.05h0s.08,0,.11,0A40.21,40.21,0,0,1,176,208Z"/></svg></div><div class="tt"><b class="recTitle">Task 3</b><span>Contact your receptionist</span></div></div>
     </section>
     <section class="panel tile emp-tile initial" id="aEmps">
       <div class="head"><h3>Employees</h3><button class="icon-btn"><svg class="ph" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M256,136a8,8,0,0,1-8,8H232v16a8,8,0,0,1-16,0V144H200a8,8,0,0,1,0-16h16V112a8,8,0,0,1,16,0v16h16A8,8,0,0,1,256,136Zm-57.87,58.85a8,8,0,0,1-12.26,10.3C165.75,181.19,138.09,168,108,168s-57.75,13.19-77.87,37.15a8,8,0,0,1-12.25-10.3c14.94-17.78,33.52-30.41,54.17-37.17a68,68,0,1,1,71.9,0C164.6,164.44,183.18,177.07,198.13,194.85ZM108,152a52,52,0,1,0-52-52A52.06,52.06,0,0,0,108,152Z"/></svg></button></div>
@@ -618,7 +619,7 @@ function available(){ return balance() - onHold(); }
 async function loadAll(){
   const day = todayIST();
   const [t,c,l,w] = await Promise.all([
-    sb.from('tasks').select('*').eq('day', day).order('slot'),
+    sb.from('tasks').select('*').eq('day', day).in('slot', [1, 2]).order('slot'),
     sb.from('completions').select('*').eq('employee', me.id).eq('day', day),
     sb.from('coin_ledger').select('*').eq('employee', me.id).order('created_at', { ascending:false }).limit(60),
     sb.from('withdrawals').select('*').eq('employee', me.id).order('created_at', { ascending:false }).limit(15)
@@ -635,7 +636,7 @@ function render(){
   $('#myDone').textContent = myDone.size + '/3';
   // tasks
   const list = $('#eTaskList'); list.innerHTML = '';
-  [1,2,3].forEach(slot => {
+  [1,2].forEach(slot => {
     const t = myTasks.find(x=>x.slot===slot);
     const row = document.createElement('div'); row.className = 'trow';
     if(!t){ row.innerHTML = `<div class="tt"><b>Task ${slot}</b><span>Not set yet</span></div>`; }
@@ -654,6 +655,16 @@ function render(){
     opened.add(+b.dataset.open); saveOpened(); render();
   });
   list.querySelectorAll('[data-done]').forEach(b => b.onclick = () => markDone(+b.dataset.done));
+  // Task 3 is fixed: no link to set, no reward — Open goes straight to the
+  // receptionist on Telegram and records the completion, like the original.
+  const r3 = document.createElement('div'); r3.className = 'trow';
+  if(myDone.has(3)){
+    r3.innerHTML = `<div class="tt"><b>Task 3</b><span>Contact your receptionist</span></div><span class="status paid">Done</span>`;
+  } else {
+    r3.innerHTML = `<div class="tt"><b>Task 3</b><span>Contact your receptionist</span></div><button class="btn gold" id="recGo">Open</button>`;
+  }
+  list.appendChild(r3);
+  const rec = $('#recGo'); if(rec) rec.onclick = () => markDone(3);
   // week + history
   const wk = ledger.filter(r => (Date.now() - new Date(r.created_at)) < 7*864e5);
   $('#wkEarned').textContent = '+' + wk.filter(r=>r.amount>0).reduce((a,r)=>a+r.amount,0);
@@ -673,7 +684,7 @@ function render(){
   if(!ledger.length) hist.innerHTML = '<div class="arow"><span style="flex:1">No activity yet</span></div>';
 }
 async function markDone(slot){
-  if(!opened.has(slot)){ alert('Open the task link first, then tap Done.'); return; }
+  if(slot !== 3 && !opened.has(slot)){ alert('Open the task link first, then tap Done.'); return; }
   const { error } = await sb.from('completions').insert({ employee: me.id, day: todayIST(), slot });
   if(error){ alert(error.message); return; }
   myDone.add(slot); render();
