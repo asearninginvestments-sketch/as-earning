@@ -689,6 +689,17 @@ function render(){
     `<button class="btn gold" id="recGo">Open</button>`;
   list.appendChild(r3);
   const rec = $('#recGo'); if(rec) rec.onclick = () => markDone(3);
+  // Tasks 4-12 are shown locked (client order 2026-11-15): the menu lists 12
+  // tasks, only the first 3 are real today. Tapping a locked row explains
+  // itself with the alert panel; once today's 3 are done it says more are
+  // coming instead of repeating the unlock line.
+  for(let n = 4; n <= 12; n++){
+    const lr = document.createElement('div'); lr.className = 'trow'; lr.style.cursor = 'pointer';
+    lr.innerHTML = `<div class="tt"><b>Task ${n}</b><span>Locked</span></div>` +
+      `<span data-locked="${n}" style="display:inline-flex;align-items:center;gap:6px;opacity:.55;font-size:13px"><svg viewBox="0 0 256 256" fill="currentColor" width="17" height="17" aria-hidden="true"><path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16,16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Zm-68-56a12,12,0,1,1-12-12A12,12,0,0,1,140,152Z"/></svg>Locked</span>`;
+    lr.onclick = () => showAlert(myDone.size >= 3 ? 'More tasks coming soon.' : 'First complete 3 tasks to unlock.');
+    list.appendChild(lr);
+  }
   // week + history
   const wk = ledger.filter(r => (Date.now() - new Date(r.created_at)) < 7*864e5);
   $('#wkEarned').textContent = '+' + wk.filter(r=>r.amount>0).reduce((a,r)=>a+r.amount,0);
@@ -713,7 +724,7 @@ async function markDone(slot){
   // no gate). The button is dimmed but tappable, so this tap explains the
   // gate with a toast instead of sitting silent (client report 2026-11-15:
   // "no pop on tapping done" — a disabled button fires nothing at all).
-  if(slot !== 3 && !opened.has(slot)){ showToast('Open the task link first, then tap Done.'); return; }
+  if(slot !== 3 && !opened.has(slot)){ showAlert('Open the task link first, then tap Done.'); return; }
   // Show the screenshot popup the moment Done is tapped — it must never
   // depend on the network round-trip finishing first.
   if(slot !== 3) $('#shotPop').classList.add('show');
@@ -775,14 +786,18 @@ $('#loginBtn').onclick = async () => {
   location.reload();
 };
 $('#logoutBtn').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+// Messages go in a centered alert panel (user order 2026-11-15: a popup at
+// the bottom is too easy to miss). Reuses the screenshot popup's overlay
+// styling (.pop-overlay/.pop-card are already in the page CSS).
+const _alert = document.createElement('div');
+_alert.className = 'pop-overlay'; _alert.id = 'alertPop';
+_alert.innerHTML = '<div class="pop-card"><p id="alertMsg"></p><button class="btn gold" id="alertOk">OK</button></div>';
+document.body.appendChild(_alert);
+function showAlert(msg){ $('#alertMsg').textContent = msg; _alert.classList.add('show'); }
+$('#alertOk').onclick = () => _alert.classList.remove('show');
+_alert.addEventListener('click', e => { if(e.target === _alert) _alert.classList.remove('show'); });
 // Sections without a function yet: tapping one shows "Coming soon"
-const _toast = document.createElement('div');
-_toast.textContent = 'Coming soon';
-_toast.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translate(-50%,16px);z-index:300;padding:11px 22px;border-radius:999px;background:rgba(16,24,20,.92);border:1px solid rgba(255,255,255,.16);color:#F3EFE6;font-size:14px;opacity:0;pointer-events:none;transition:opacity .3s ease,transform .3s ease;backdrop-filter:blur(8px)';
-document.body.appendChild(_toast);
-let _toastT;
-function showToast(msg){ _toast.textContent = msg; _toast.style.opacity = '1'; _toast.style.transform = 'translate(-50%,0)'; clearTimeout(_toastT); _toastT = setTimeout(() => { _toast.style.opacity = '0'; _toast.style.transform = 'translate(-50%,16px)'; }, 2200); }
-function showSoon(){ showToast('Coming soon'); }
+function showSoon(){ showAlert('Coming soon'); }
 document.querySelectorAll('.rail a:not(.active), .icon-btn').forEach(a => a.addEventListener('click', e => { e.preventDefault(); showSoon(); }));
 boot();
 
