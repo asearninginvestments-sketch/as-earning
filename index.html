@@ -603,6 +603,11 @@ const sb = window.supabase.createClient(SB_URL, SB_KEY);
 const $ = s => document.querySelector(s);
 const todayIST = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
 let me = null, profile = null, myTasks = [], myDone = new Set(), ledger = [], wds = [];
+// Done only works after the employee has clicked Open and visited the link.
+let opened = new Set();
+const openedKey = () => 'ase_opened_' + (me ? me.id : '') + '_' + todayIST();
+function loadOpened(){ try { opened = new Set(JSON.parse(localStorage.getItem(openedKey()) || '[]')); } catch(e){ opened = new Set(); } }
+function saveOpened(){ try { localStorage.setItem(openedKey(), JSON.stringify([...opened])); } catch(e){} }
 
 document.querySelector('.viewtoggle')?.remove();
 function initials(n){ return n.split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
@@ -620,6 +625,7 @@ async function loadAll(){
   ]);
   myTasks = t.data || []; myDone = new Set((c.data||[]).map(r=>r.slot));
   ledger = l.data || []; wds = w.data || [];
+  loadOpened();
   render();
 }
 function render(){
@@ -635,14 +641,17 @@ function render(){
     if(!t){ row.innerHTML = `<div class="tt"><b>Task ${slot}</b><span>Not set yet</span></div>`; }
     else {
       const done = myDone.has(slot);
+      const canDone = opened.has(slot);
       row.innerHTML = `<div class="tt"><b>Task ${slot}${t.prepaid?' · Prepaid':''}</b><span>${t.title} · ₹${t.reward}</span></div>` +
         (done ? `<span class="status paid">Done</span>` :
-        `<button class="btn ghost" data-open="${slot}">Open</button><button class="btn gold" data-done="${slot}">Done</button>`);
+        `<button class="btn ghost" data-open="${slot}">Open</button><button class="btn gold" data-done="${slot}"${canDone ? '' : ' disabled style="opacity:.45"'}>Done</button>`);
     }
     list.appendChild(row);
   });
   list.querySelectorAll('[data-open]').forEach(b => b.onclick = () => {
-    const t = myTasks.find(x=>x.slot==+b.dataset.open); if(t) window.open(t.url, '_blank');
+    const t = myTasks.find(x=>x.slot==+b.dataset.open); if(!t) return;
+    window.open(t.url, '_blank');
+    opened.add(+b.dataset.open); saveOpened(); render();
   });
   list.querySelectorAll('[data-done]').forEach(b => b.onclick = () => markDone(+b.dataset.done));
   // week + history
@@ -664,6 +673,7 @@ function render(){
   if(!ledger.length) hist.innerHTML = '<div class="arow"><span style="flex:1">No activity yet</span></div>';
 }
 async function markDone(slot){
+  if(!opened.has(slot)){ alert('Open the task link first, then tap Done.'); return; }
   const { error } = await sb.from('completions').insert({ employee: me.id, day: todayIST(), slot });
   if(error){ alert(error.message); return; }
   myDone.add(slot); render();
