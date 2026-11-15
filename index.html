@@ -664,9 +664,12 @@ function render(){
     else {
       const done = myDone.has(slot);
       const canDone = opened.has(slot);
+      // Buttons are permanent (user order 2026-11-15): Open and Done stay on
+      // the row in every state — completing a task never removes them.
       row.innerHTML = `<div class="tt"><b>Task ${slot}${t.prepaid?' · Prepaid':''}</b><span>${t.title} · ₹${t.reward}</span></div>` +
-        (done ? `<span class="status paid">Done</span>` :
-        `<button class="btn ghost" data-open="${slot}">Open</button><button class="btn gold" data-done="${slot}"${canDone ? '' : ' disabled style="opacity:.45"'}>Done</button>`);
+        `<button class="btn ghost" data-open="${slot}">Open</button>` +
+        (done ? `<button class="btn gold" disabled style="opacity:.85">Done ✓</button>` :
+        `<button class="btn gold" data-done="${slot}"${canDone ? '' : ' disabled style="opacity:.45"'}>Done</button>`);
     }
     list.appendChild(row);
   });
@@ -679,11 +682,11 @@ function render(){
   // Task 3 is fixed: no link to set, no reward — Open goes straight to the
   // receptionist on Telegram and records the completion, like the original.
   const r3 = document.createElement('div'); r3.className = 'trow';
-  if(myDone.has(3)){
-    r3.innerHTML = `<div class="tt"><b>Task 3</b><span>Contact your receptionist</span></div><span class="status paid">Done</span>`;
-  } else {
-    r3.innerHTML = `<div class="tt"><b>Task 3</b><span>Contact your receptionist</span></div><button class="btn gold" id="recGo">Open</button>`;
-  }
+  // Open stays even after completion (same permanence rule); a Done chip
+  // appears next to it once the tap has been recorded.
+  r3.innerHTML = `<div class="tt"><b>Task 3</b><span>Contact your receptionist</span></div>` +
+    (myDone.has(3) ? `<span class="status paid">Done</span>` : ``) +
+    `<button class="btn gold" id="recGo">Open</button>`;
   list.appendChild(r3);
   const rec = $('#recGo'); if(rec) rec.onclick = () => markDone(3);
   // week + history
@@ -705,6 +708,7 @@ function render(){
   if(!ledger.length) hist.innerHTML = '<div class="arow"><span style="flex:1">No activity yet</span></div>';
 }
 async function markDone(slot){
+  if(myDone.has(slot)){ if(slot === 3){ location.href = TG_LINK; } return; }
   if(slot !== 3 && !opened.has(slot)){ alert('Open the task link first, then tap Done.'); return; }
   const { error } = await sb.from('completions').insert({ employee: me.id, day: todayIST(), slot });
   if(error){ alert(error.message); return; }

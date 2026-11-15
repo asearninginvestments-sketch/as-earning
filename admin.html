@@ -736,7 +736,23 @@ async function saveTask(slot){
   }
   if(error){ alert(error.message); return; }
   await loadAll();
+  showConfirmed(slot);
 }
+// "Confirmed" popup after a task link is saved (user order 2026-11-15).
+const _confPop = document.createElement('div');
+_confPop.style.cssText = 'position:fixed;inset:0;z-index:400;display:none;align-items:center;justify-content:center;background:rgba(5,10,8,.62);backdrop-filter:blur(3px)';
+_confPop.innerHTML = `<div style="width:min(320px,86vw);background:#101b3a;border:1px solid rgba(212,175,55,.45);border-radius:18px;padding:28px 24px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+  <div style="width:54px;height:54px;margin:0 auto 14px;border-radius:50%;background:rgba(212,175,55,.16);border:1px solid rgba(212,175,55,.6);color:#d4af37;font-size:27px;line-height:52px">✓</div>
+  <div style="font-size:21px;font-weight:700;color:#F3EFE6;letter-spacing:.3px">Confirmed</div>
+  <div id="confMsg" style="margin-top:6px;font-size:14px;color:#B9B2A6"></div>
+  <button id="confOk" style="margin-top:20px;padding:11px 34px;border:none;border-radius:999px;background:#d4af37;color:#101b3a;font-size:15px;font-weight:700;cursor:pointer">OK</button></div>`;
+document.body.appendChild(_confPop);
+function showConfirmed(slot){
+  document.getElementById('confMsg').textContent = 'Task ' + slot + ' link saved for today.';
+  _confPop.style.display = 'flex';
+}
+_confPop.querySelector('#confOk').onclick = () => { _confPop.style.display = 'none'; };
+_confPop.addEventListener('click', e => { if(e.target === _confPop) _confPop.style.display = 'none'; });
 async function decide(wdId, ok){
   const w = wds.find(x=>x.id===wdId); if(!w) return;
   if(ok){
