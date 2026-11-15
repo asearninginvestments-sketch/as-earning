@@ -597,6 +597,7 @@
 // A.S EARNING — admin page (Supabase wired)
 const SB_URL = 'https://flqgoftvblxvwgwembcx.supabase.co';
 const SB_KEY = 'sb_publishable_JS-nPAF_pUw7Ea9Tkm9NkQ_QBUXVTUv';
+document.body.dataset.view = "admin";
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
 const $ = s => document.querySelector(s);
 const todayIST = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
