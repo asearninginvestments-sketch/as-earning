@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A.S EARNING</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --lime:#EBC04C;
+    --lime-dim:#C99B2E;
+    --green:#3FA46A;
+    --orange:#F2A93B;
+    --ink:#EFF6E9;
+    --muted:#93A98F;
+    --faint:#6E856B;
+    --panel:rgba(11,21,13,.78);
+    --card:rgba(255,255,255,.045);
+    --card-line:rgba(255,255,255,.06);
+    --radius:22px;
+    --rightw:min(420px,32vw);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
+  html,body{height:100%}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    background:#0A140C;
+    color:var(--ink);
+    overflow:hidden;
+  }
+  /* ---------- MAP ---------- */
+  .map{position:fixed;inset:0;overflow:hidden;background:#12240F}
+  .map img.photo{
+    position:absolute;inset:-4%;width:108%;height:108%;object-fit:cover;
+    transform-origin:50% 45%;
+    filter:saturate(1.12) contrast(1.03);
+  }
+  .map .tint{position:absolute;inset:0;opacity:0;transition:opacity .8s ease;pointer-events:none}
+  .map .tint.moisture{background:rgba(38,92,160,.20);opacity:1}
+  .map .tint.yield{background:rgba(214,150,32,.16);opacity:1}
+  .map .shade{position:absolute;inset:0;pointer-events:none;
+    background:
+      linear-gradient(180deg, rgba(6,12,7,.42) 0%, rgba(6,12,7,0) 18%, rgba(6,12,7,0) 62%, rgba(6,12,7,.38) 100%),
+      radial-gradient(120% 90% at 50% 40%, rgba(0,0,0,0) 55%, rgba(4,9,5,.35) 100%);
+  }
+  /* pins */
+  .pin{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;gap:0;z-index:5;cursor:pointer}
+  .pin .tag{
+    display:flex;align-items:center;gap:7px;white-space:nowrap;
+    background:rgba(10,18,11,.82);backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,.10);
+    padding:6px 12px;border-radius:999px;font-size:12.5px;font-weight:600;letter-spacing:.01em;
+    box-shadow:0 8px 22px rgba(0,0,0,.35);
+  }
+  .pin .tag i{width:7px;height:7px;border-radius:50%;background:#7FE3A8;display:block}
+  .pin .tag b{font-weight:700}
+  .pin .tag span{color:var(--muted);font-weight:500}
+  .pin .stem{width:1.5px;height:15px;background:linear-gradient(180deg,rgba(255,255,255,.75),rgba(255,255,255,.15))}
+  .pin .dot{width:11px;height:11px;border-radius:50%;background:#fff;border:3px solid rgba(20,32,20,.85);box-shadow:0 2px 8px rgba(0,0,0,.5);margin-top:-1px}
+  .pin.warn .tag{background:linear-gradient(180deg,#F7BC55,#EEA233);color:#3A2703;border-color:rgba(255,255,255,.25)}
+  .pin.warn .tag span{color:#6d4c10}
+  .pin.warn .dot{background:transparent;border:3px solid #F5B544;width:15px;height:15px;position:relative}
+  .pin.warn .dot::after{content:"";position:absolute;inset:-11px;border-radius:50%;border:1.5px solid rgba(245,181,68,.75);animation:pulse 2.2s ease-out infinite}
+  @keyframes pulse{0%{transform:scale(.45);opacity:1}70%{transform:scale(1.15);opacity:0}100%{opacity:0}}
+
+  .scalebar{position:absolute;left:26px;top:57%;z-index:4;color:rgba(255,255,255,.85);font-size:11.5px;font-weight:500;display:flex;align-items:center;gap:9px;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+  .scalebar .bar{width:86px;height:5px;border-left:2px solid rgba(255,255,255,.9);border-right:2px solid rgba(255,255,255,.9);border-bottom:2px solid rgba(255,255,255,.9)}
+
+  /* layer switcher — sits in the free map strip left of the right column, never on a panel */
+  .layers{position:absolute;right:calc(var(--rightw) + 38px);top:41%;z-index:6;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+  .layers button{
+    font-family:inherit;font-size:12.5px;font-weight:600;color:var(--ink);
+    background:rgba(10,18,11,.78);border:1px solid rgba(255,255,255,.10);backdrop-filter:blur(8px);
+    padding:7px 14px;border-radius:999px;cursor:pointer;transition:all .25s ease;box-shadow:0 8px 20px rgba(0,0,0,.3);
+  }
+  .layers button:hover{border-color:rgba(255,255,255,.28)}
+  .layers button.active{background:var(--lime);color:#2B2003;border-color:transparent}
+
+  /* ---------- HEADER ---------- */
+  header{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;gap:22px;padding:20px 26px}
+  .logo{display:flex;align-items:center;gap:11px;font-size:24px;font-weight:800;letter-spacing:-.02em;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.45)}
+  .logo .mark{width:34px;height:34px;border-radius:10px;background:var(--lime);display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+  .logo .mark svg{width:20px;height:20px}
+  .search{
+    display:flex;align-items:center;gap:10px;width:min(430px,34vw);
+    background:rgba(10,18,11,.72);border:1px solid rgba(255,255,255,.09);backdrop-filter:blur(12px);
+    border-radius:999px;padding:11px 18px;color:var(--muted);font-size:13.5px;font-weight:500;
+    box-shadow:0 10px 26px rgba(0,0,0,.28);
+  }
+  .search svg{width:15px;height:15px;flex:none}
+  .head-right{margin-left:auto;display:flex;align-items:center;gap:14px}
+  .bell{position:relative;width:42px;height:42px;border-radius:50%;background:rgba(10,18,11,.72);border:1px solid rgba(255,255,255,.09);backdrop-filter:blur(12px);display:grid;place-items:center;cursor:pointer}
+  .bell svg{width:18px;height:18px}
+  .bell::after{content:"";position:absolute;top:9px;right:10px;width:8px;height:8px;border-radius:50%;background:var(--lime);border:2px solid #0d1710}
+  .user{display:flex;align-items:center;gap:11px;background:rgba(10,18,11,.72);border:1px solid rgba(255,255,255,.09);backdrop-filter:blur(12px);border-radius:999px;padding:6px 18px 6px 6px;cursor:pointer}
+  .user .ava{width:36px;height:36px;border-radius:50%;background:var(--lime);color:#22330F;font-weight:800;font-size:13px;display:grid;place-items:center}
+  .user .who{line-height:1.15}
+  .user .who b{display:block;font-size:13.5px;font-weight:700}
+  .user .who span{font-size:11.5px;color:var(--muted);font-weight:500}
+
+  /* ---------- LEFT COLUMN (rail + dock share one column, so they can
+     never overlap: the dock is pushed to the bottom by flex, the rail's
+     top offset shrinks to 0 as the window gets shorter, and below the
+     minimum height the column scrolls instead of colliding) ---------- */
+  .leftcol{
+    position:fixed;left:22px;top:92px;bottom:22px;z-index:14;
+    display:flex;flex-direction:column;gap:16px;
+    width:max-content;max-width:calc(100vw - var(--rightw) - 82px);
+    overflow-y:auto;scrollbar-width:none;overscroll-behavior:contain;
+    pointer-events:none;
+  }
+  .leftcol::-webkit-scrollbar{display:none}
+  .leftcol>*{pointer-events:auto}
+
+  /* ---------- RAIL ---------- */
+  .rail{
+    position:relative;z-index:15;width:196px;flex:none;
+    margin-top:clamp(0px,calc(100vh - 700px),173px);
+    background:var(--panel);border:1px solid var(--card-line);border-radius:var(--radius);
+    backdrop-filter:blur(20px);padding:12px;box-shadow:0 24px 50px rgba(0,0,0,.42);
+    display:flex;flex-direction:column;gap:3px;
+  }
+  .rail a{
+    display:flex;align-items:center;gap:13px;padding:12px 14px;border-radius:14px;
+    color:#C9D6C2;text-decoration:none;font-size:14.5px;font-weight:500;position:relative;transition:background .25s,color .25s;
+  }
+  .rail a svg{width:19px;height:19px;flex:none;opacity:.9}
+  .rail a:hover{background:rgba(255,255,255,.05);color:#fff}
+  .rail a.active{background:rgba(255,255,255,.10);color:#fff;font-weight:600}
+  .rail a.active::after{content:"";position:absolute;right:14px;width:7px;height:7px;border-radius:50%;background:var(--lime)}
+
+  /* ---------- PANELS (shared) ---------- */
+  .panel{
+    background:var(--panel);border:1px solid var(--card-line);border-radius:var(--radius);
+    backdrop-filter:blur(20px);box-shadow:0 24px 50px rgba(0,0,0,.42);
+  }
+  .panel h3{font-size:19px;font-weight:700;letter-spacing:-.01em}
+  .panel .sub{font-size:12.5px;color:var(--muted);font-weight:500;margin-top:3px}
+  .icon-btn{width:34px;height:34px;border-radius:11px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.05);display:grid;place-items:center;cursor:pointer;flex:none}
+  .icon-btn svg{width:15px;height:15px}
+  .chip{display:inline-flex;align-items:center;background:rgba(235,192,76,.16);color:var(--lime);font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px}
+
+  /* ---------- DOCK (bottom-left cards) ---------- */
+  .dock{position:relative;flex:none;margin-top:auto;max-width:calc(100vw - var(--rightw) - 82px);z-index:14;display:flex;gap:16px;align-items:stretch}
+  .cropmix{width:348px;flex:0 0 348px;padding:20px 22px}
+  .cropmix .body{display:flex;align-items:center;gap:8px;margin-top:12px}
+  .donut{position:relative;width:158px;height:158px;flex:none}
+  .donut svg{width:100%;height:100%;transform:rotate(-90deg)}
+  .donut .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+  .donut .center b{font-size:23px;font-weight:700;letter-spacing:-.01em}
+  .donut .center span{font-size:8.5px;letter-spacing:.22em;color:var(--muted);font-weight:600;margin-top:1px}
+  .legend{display:flex;flex-direction:column;gap:13px;margin-left:6px}
+  .legend .row{display:flex;flex-direction:column}
+  .legend .row .name{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#C9D6C2;font-weight:500}
+  .legend .row .name i{width:8px;height:8px;border-radius:50%}
+  .legend .row .val{font-size:21px;font-weight:600;margin-top:1px}
+
+  .harvest{width:472px;flex:1 1 472px;min-width:0;padding:20px 22px}
+  .harvest .top{display:flex;align-items:flex-start;justify-content:space-between}
+  .harvest .controls{display:flex;gap:8px;align-items:center}
+  .pill-btn{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.05);color:var(--ink);font-family:inherit;font-size:12px;font-weight:600;padding:8px 12px;border-radius:999px;cursor:pointer}
+  .pill-btn svg{width:11px;height:11px}
+  .bars{display:flex;align-items:flex-end;gap:9px;height:138px;margin-top:14px}
+  .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%}
+  .col .track{position:relative;width:100%;max-width:22px;flex:1;background:rgba(255,255,255,.055);border-radius:8px;display:flex;align-items:flex-end;overflow:hidden}
+  .col .fill{width:100%;border-radius:8px;background:linear-gradient(180deg,#F4F7EF,#B9C4B2);height:0%}
+  .col.hot .fill{background:linear-gradient(180deg,#F0D07A,#D9A92F)}
+  .col .mon{font-size:10.5px;color:var(--faint);font-weight:500}
+  .harvest .axis{position:absolute}
+  .bars-wrap{position:relative}
+  .yaxis{position:absolute;left:-4px;top:0;bottom:22px;display:flex;flex-direction:column;justify-content:space-between;font-size:10px;color:var(--faint);font-weight:500;transform:translateX(-100%);padding-right:6px;text-align:right}
+
+  /* ---------- RIGHT COLUMN ---------- */
+  .right{position:fixed;right:22px;top:88px;bottom:22px;z-index:14;width:var(--rightw);display:flex;flex-direction:column;gap:16px;overflow-y:auto;scrollbar-width:none;overscroll-behavior:contain}
+  .right::-webkit-scrollbar{display:none}
+  .right>*{flex:none}
+  .right>.messages{flex:1 0 auto}
+  .overview{padding:20px 22px}
+  .overview .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .overview .head h3{font-size:21px}
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .stat{background:var(--card);border:1px solid var(--card-line);border-radius:17px;padding:14px;position:relative;overflow:hidden;min-height:138px;display:flex;flex-direction:column}
+  .stat .lbl{font-size:13px;color:#C9D6C2;font-weight:500;display:flex;justify-content:space-between;align-items:center}
+  .stat .lbl svg{width:16px;height:16px;opacity:.75}
+  .stat .big{font-size:28px;font-weight:600;letter-spacing:-.02em;margin-top:7px;display:flex;align-items:baseline;gap:5px}
+  .stat .big .chip{font-size:10.5px;padding:3px 8px;white-space:nowrap}
+  .stat .big small{font-size:14px;color:var(--muted);font-weight:500}
+  .stat .big .chip{margin-left:auto;align-self:center}
+  .stat .spark{margin-top:auto}
+  .stat .spark svg{width:100%;height:44px;display:block}
+  .lollis{display:flex;align-items:flex-end;justify-content:space-between;height:52px;margin-top:auto;position:relative;padding:0 2px}
+  .lollis .dash{position:absolute;left:0;right:0;top:6px;border-top:1.5px dashed rgba(255,255,255,.28)}
+  .lollis .max{position:absolute;top:-7px;left:0;background:#E9F2DF;color:#20301A;font-size:9.5px;font-weight:700;padding:2.5px 7px;border-radius:6px;z-index:2}
+  .lolli{display:flex;flex-direction:column;align-items:center;gap:0;width:14px}
+  .lolli i{width:9px;height:9px;border-radius:50%;background:#E9F2DF;display:block;flex:none}
+  .lolli .stem{width:2.5px;background:#C9D6C2;border-radius:2px;height:0}
+  .lolli.hot i{background:var(--lime)}
+  .lolli.hot .stem{background:var(--lime)}
+  .gauge-wrap{margin-top:auto;display:flex;flex-direction:column;align-items:center}
+  .gauge-wrap svg{width:168px;height:96px}
+  .gauge-num{font-size:31px;font-weight:600;letter-spacing:-.02em;margin-top:-52px}
+  .gauge-sub{font-size:9.5px;letter-spacing:.24em;color:var(--muted);font-weight:600;margin-top:1px}
+
+  .irrigation{padding:18px 22px}
+  .irrigation .plan-lbl{font-size:12px;color:var(--muted);font-weight:500}
+  .irrigation .plan-title{font-size:15.5px;font-weight:700;letter-spacing:-.01em;margin-top:4px;white-space:nowrap}
+  .irrigation .plan-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .agronomist{display:flex;align-items:center;gap:10px}
+  .agronomist .ava{width:38px;height:38px;border-radius:50%;background:#DCE8CF;color:#2A3D1E;font-weight:700;font-size:12.5px;display:grid;place-items:center;flex:none}
+  .agronomist .who{line-height:1.2}
+  .agronomist .who span{display:block;font-size:11px;color:var(--muted);font-weight:500}
+  .agronomist .who b{font-size:13.5px;font-weight:600}
+  .zones{margin-top:16px}
+  .zones .zrow{display:flex;justify-content:space-between;font-size:12.5px;color:#C9D6C2;font-weight:500}
+  .zones .zrow b{color:var(--ink);font-weight:600}
+  .zones .segs{display:flex;gap:8px;margin-top:9px}
+  .zones .segs i{flex:1;height:15px;border-radius:6px;background:rgba(255,255,255,.09)}
+  .zones .segs i.on{background:rgba(255,255,255,.16)}
+  .zones .segs i.lime{background:var(--lime)}
+
+  .messages{padding:18px 22px;flex:1;min-height:0}
+  .messages .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .messages .head a{font-size:12px;color:var(--muted);text-decoration:none;font-weight:500}
+  .msg{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+  .msg:last-child{border-bottom:none}
+  .msg .ava{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:700;flex:none}
+  .msg .txt{min-width:0}
+  .msg .txt b{font-size:13.5px;font-weight:600;display:block}
+  .msg .txt span{font-size:12px;color:var(--muted);font-weight:400;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* Phosphor icon sizing in text contexts */
+  .logo .mark{color:#22330F}
+  .pin .tag svg{width:13px;height:13px;flex:none}
+
+  /* late overrides: irrigation row fit */
+  .irrigation .plan-row{gap:8px}
+  .irrigation .agronomist{gap:8px}
+  .irrigation .agronomist .ava{width:34px;height:34px}
+  .irrigation .agronomist .who b{white-space:nowrap;font-size:12.5px}
+  .irrigation .agronomist .who span{font-size:10px}
+
+  .initial{opacity:0}
+  /* Narrower desktop: shrink the right column so dock + right can never meet */
+  @media (min-width:1201px) and (max-width:1440px){
+    :root{--rightw:380px}
+    .cropmix{flex-basis:320px;width:320px}
+  }
+  /* Short desktop windows: rail + dock compact a step so the whole left
+     column still fits on screen (no overlap, nothing pushed off-screen) */
+  @media (min-width:1201px) and (max-height:700px){
+    .leftcol{gap:10px}
+    .rail{padding:9px 12px}
+    .rail a{padding:9px 14px}
+    .cropmix,.harvest{padding:16px 22px}
+  }
+  @media (min-width:1201px) and (max-height:640px){
+    .rail a{padding:7px 14px}
+    .cropmix,.harvest{padding:13px 22px}
+  }
+  /* Stacked layout (tablets, small laptops, phones): every panel in normal
+     flow, one per row — fixed collage positioning is off, so no two panels
+     can overlap at any width or while scrolling. */
+  @media (max-width:1200px){
+    body{overflow:auto}
+    .map{position:fixed}
+    header{position:absolute;padding:14px 16px;gap:12px}
+    .logo{font-size:20px}
+    .leftcol{position:static;display:contents;overflow:visible}
+    .rail{position:absolute;margin-top:0;flex-direction:row;left:12px;right:12px;top:76px;width:auto;padding:8px;overflow-x:auto}
+    .rail a{padding:9px 12px;font-size:13px;white-space:nowrap}
+    .rail a.active::after{display:none}
+    .right{position:relative;right:auto;top:auto;bottom:auto;width:auto;margin:14px 12px 24px;overflow-y:visible}
+    .dock{position:relative;left:auto;bottom:auto;right:auto;max-width:none;margin:calc(52vh + 132px) 12px 0;flex-direction:column}
+    .cropmix,.harvest{width:auto;flex:none;min-width:0}
+    .layers{display:none}
+    .scalebar{display:none}
+    .stat .big{font-size:24px}
+    .stat .big .chip{font-size:9.5px;padding:2.5px 7px}
+    .pill-btn{white-space:nowrap}
+    .irrigation .plan-row{flex-wrap:wrap}
+    .irrigation .plan-title{white-space:normal}
+    /* Field 02 pin (4th div-pin in the map) drops below the header + rail bar */
+    .map .pin:nth-of-type(4){top:21% !important}
+  }
+  @media (max-width:900px){
+    .search{display:none}
+  }
+
+  /* ---------- A.S EARNING additions ---------- */
+  .logo .mark{background:var(--lime);color:#2B2003;font-size:13px;font-weight:800;letter-spacing:.02em}
+  .logo .who-line{font-size:9.5px;letter-spacing:.28em;color:var(--muted);font-weight:600;margin-top:2px}
+  .logo .lname{line-height:1}
+  .viewtoggle{display:flex;background:rgba(10,18,11,.72);border:1px solid rgba(255,255,255,.09);backdrop-filter:blur(12px);border-radius:999px;padding:4px;gap:4px}
+  .viewtoggle button{font-family:inherit;font-size:12.5px;font-weight:600;color:var(--muted);background:transparent;border:none;padding:7px 16px;border-radius:999px;cursor:pointer;transition:all .25s}
+  .viewtoggle button.active{background:var(--lime);color:#2B2003}
+  .coinpill{display:flex;align-items:center;gap:8px;background:rgba(10,18,11,.72);border:1px solid rgba(255,255,255,.09);backdrop-filter:blur(12px);border-radius:999px;padding:9px 16px;font-size:14px;font-weight:700}
+  .coinpill svg{width:17px;height:17px;color:var(--lime)}
+  .coinpill small{font-size:11px;color:var(--muted);font-weight:500}
+
+  body[data-view="admin"] .only-emp{display:none !important}
+  body[data-view="emp"] .search{visibility:hidden}
+  body[data-view="emp"] .only-admin{display:none !important}
+  .rail .lbl-emp, .rail .ic-emp{display:none}
+  body[data-view="emp"] .rail .lbl-emp{display:inline}
+  body[data-view="emp"] .rail .ic-emp{display:block}
+  body[data-view="emp"] .rail .lbl-admin, body[data-view="emp"] .rail .ic-admin{display:none}
+
+  .tile{padding:20px 22px}
+  .tile .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .dock .tasks-tile{width:400px;flex:0 0 400px}
+  .dock .emp-tile{flex:1 1 472px;min-width:0}
+  .dock .week-tile{width:348px;flex:0 0 348px}
+  .dock .tasks-wide{flex:1 1 auto;min-width:0}
+
+  .trow,.erow,.wrow,.arow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+  .trow:last-child,.erow:last-child,.wrow:last-child,.arow:last-child{border-bottom:none}
+  .trow .tic,.erow .ava{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;flex:none;background:rgba(255,255,255,.06);color:var(--lime)}
+  .trow .tic svg{width:18px;height:18px}
+  .erow .ava{background:#DCE8CF;color:#2A3D1E;font-size:11.5px;font-weight:700}
+  .trow .tt,.erow .tt{flex:1;min-width:0}
+  .trow .tt b,.erow .tt b{font-size:13.5px;font-weight:600;display:block}
+  .trow .tt span,.erow .tt span{font-size:11.5px;color:var(--muted);font-weight:500;display:block}
+  .bal{font-size:15px;font-weight:700;white-space:nowrap}
+  .bal small{font-size:11px;color:var(--muted);font-weight:500}
+  .stepper{display:flex;align-items:center;gap:6px}
+  .stepper button{width:28px;height:28px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.06);color:var(--ink);cursor:pointer;display:grid;place-items:center}
+  .stepper button svg{width:13px;height:13px}
+  .stepper button:hover{border-color:rgba(235,192,76,.5);color:var(--lime)}
+  .btn{font-family:inherit;font-size:12.5px;font-weight:700;padding:8px 15px;border-radius:999px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.06);color:var(--ink);cursor:pointer;white-space:nowrap;transition:all .25s}
+  .btn:hover{border-color:rgba(255,255,255,.3)}
+  .btn.gold{background:var(--lime);color:#2B2003;border-color:transparent}
+  .btn.ghost-done{background:rgba(235,192,76,.16);color:var(--lime);border-color:transparent;cursor:default}
+  .btn.reject:hover{border-color:rgba(242,120,90,.6);color:#F29B7E}
+  .amt{font-size:15px;font-weight:700;white-space:nowrap}
+  .arow{font-size:12.5px;color:#C9D6C2;font-weight:500}
+  .arow b{color:var(--ink);font-weight:600}
+  .arow .when{margin-left:auto;font-size:11px;color:var(--faint);white-space:nowrap}
+  .arow .sign{width:34px;text-align:right;font-weight:700;flex:none}
+  .arow .plus{color:var(--lime)} .arow .minus{color:#F29B7E}
+  .status{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;background:rgba(235,192,76,.16);color:var(--lime);white-space:nowrap}
+  .status.paid{background:rgba(255,255,255,.08);color:#C9D6C2}
+
+  .bigbal{display:flex;align-items:center;gap:14px;margin-top:4px}
+  .bigbal .cic{width:52px;height:52px;border-radius:16px;background:rgba(235,192,76,.16);display:grid;place-items:center;color:var(--lime);flex:none}
+  .bigbal .cic svg{width:27px;height:27px}
+  .bigbal .n{font-size:40px;font-weight:700;letter-spacing:-.02em;line-height:1}
+  .bigbal .n small{font-size:15px;color:var(--muted);font-weight:500}
+  .minirow{display:flex;gap:18px;margin-top:14px}
+  .minirow .m b{font-size:16px;font-weight:700;display:block}
+  .minirow .m span{font-size:11px;color:var(--muted);font-weight:500}
+  .stat{min-height:0;padding:16px}
+  .stat .big{font-size:26px;margin-top:5px}
+  .wform{display:flex;gap:9px;margin-top:12px}
+  .wform input{flex:1;min-width:0;font-family:inherit;font-size:14px;font-weight:600;color:var(--ink);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 14px;outline:none}
+  .wform input:focus{border-color:rgba(235,192,76,.55)}
+  .wform input::placeholder{color:var(--faint);font-weight:500}
+  .wmsg{font-size:12px;color:#F29B7E;font-weight:500;margin-top:10px;min-height:15px}
+  .wmsg.ok{color:var(--lime)}
+  .wlbl{font-size:12px;color:var(--muted);font-weight:500;margin-top:10px}
+  .week-nums{display:flex;justify-content:space-between;margin-top:14px}
+  .week-nums .m b{font-size:22px;font-weight:700;display:block}
+  .week-nums .m span{font-size:11px;color:var(--muted);font-weight:500}
+  @media (max-width:700px){
+    .bell{display:none}
+    .user .who{display:none}
+    .user{padding:6px}
+    .logo .mark{flex:none}
+    .logo .who-line{display:none}
+    header{gap:10px}
+  }
+  @media (max-width:1200px){
+    .dock .tasks-tile,.dock .emp-tile,.dock .week-tile,.dock .tasks-wide{width:auto;flex:none}
+    .viewtoggle button{padding:7px 11px}
+    .coinpill{display:none}
+  }
+
+  /* ---------- phone-first optimisation ---------- */
+  @media (max-width:1200px){
+    body{display:flex;flex-direction:column;gap:14px;padding-bottom:18px}
+    .leftcol,.dock,.right{display:contents}
+    header{order:0;position:sticky;top:0;z-index:60;padding-top:12px}
+    .rail{order:1;margin:0 12px;position:relative;left:auto;top:auto}
+    .panel{margin:0 12px}
+    #aOver{order:2} #aEmps{order:3} #aWd{order:4} #aTasks{order:5} #aAct{order:6}
+    #eBal{order:2} #eTasks{order:3} #eWd{order:4} #eWeek{order:5} #eHist{order:6}
+  }
+  @media (max-width:700px){
+    .tile{padding:18px}
+    .btn{min-height:40px;padding:9px 16px}
+    .stepper button{width:36px;height:36px;border-radius:11px}
+    .trow,.erow,.wrow,.arow{padding-top:12px;padding-bottom:12px}
+    .wform input{font-size:16px;padding:12px 14px}
+    .wform .btn{min-height:46px}
+    .rail a{padding:12px 15px}
+    .bigbal .n{font-size:34px}
+    .stat .big{font-size:23px}
+    .wrow{flex-wrap:wrap}
+    .wrow .amt{margin-left:auto}
+    .wrow .btn{flex:1}
+    #eTasks .trow{flex-wrap:wrap}
+    #eTasks .trow .tt{flex:1 1 calc(100% - 50px)}
+    #eTasks .trow .btn{margin-left:auto}
+    #eTasks .trow .btn.gold{margin-left:8px}
+  }
+  @media (max-width:400px){
+    .viewtoggle button{padding:6px 9px;font-size:11.5px}
+    .logo{font-size:17px}
+    .logo .mark{width:34px;height:34px;font-size:11px}
+    header{padding-left:12px;padding-right:12px;gap:8px}
+    .user{padding:5px}
+    .user .ava{width:32px;height:32px}
+  }
+  @media (min-width:1201px) and (max-height:860px){
+    .dock{min-height:0}
+    .dock .tile{overflow-y:auto;scrollbar-width:none;min-height:0}
+    .dock .tile::-webkit-scrollbar{display:none}
+  }
+
+  /* ---------- screenshot popup ---------- */
+  .pop-overlay{position:fixed;inset:0;z-index:200;background:rgba(4,8,5,.55);backdrop-filter:blur(6px);display:grid;place-items:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .3s}
+  .pop-overlay.show{opacity:1;pointer-events:auto}
+  .pop-card{background:linear-gradient(160deg,rgba(38,52,36,.92),rgba(14,22,14,.94));border:1px solid rgba(255,255,255,.1);border-radius:22px;padding:28px 24px;max-width:330px;width:100%;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+  .pop-card .pic{width:52px;height:52px;border-radius:50%;background:rgba(235,192,76,.16);color:var(--lime);display:grid;place-items:center;margin:0 auto 14px}
+  .pop-card .pic svg{width:25px;height:25px}
+  .pop-card p{font-size:16px;font-weight:600;line-height:1.45;margin:0 0 20px}
+  .pop-card .btn{width:100%;min-height:46px}
+
+  body[data-lock="emp"] .viewtoggle, body[data-lock="admin"] .viewtoggle{display:none}
+</style>
+
+<style>
+#loginGate{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:rgba(6,10,8,.55);backdrop-filter:blur(10px)}
+#loginGate.show{display:flex}
+.lg-card{width:min(360px,90vw);padding:30px 26px;border-radius:22px;background:rgba(16,24,20,.82);border:1px solid rgba(255,255,255,.14);color:#F3EFE6;text-align:center;box-shadow:0 30px 60px rgba(0,0,0,.45)}
+.lg-card .mark{width:52px;height:52px;margin:0 auto 10px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:800;background:linear-gradient(135deg,#EBC04C,#B98A1E);color:#1A1405}
+.lg-card h2{margin:2px 0 2px;font-size:20px;letter-spacing:.06em}
+.lg-card .tag{opacity:.65;font-size:12px;margin-bottom:18px}
+.lg-card input{width:100%;box-sizing:border-box;margin:6px 0;padding:13px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);color:#fff;font-size:15px}
+.lg-card input::placeholder{color:rgba(255,255,255,.45)}
+.lg-card .btn{width:100%;margin-top:10px;padding:13px}
+#loginErr{color:#FF9B8A;font-size:13px;min-height:18px;margin-top:10px}
+#logoutBtn{margin-left:10px}
+.erow{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid rgba(255,255,255,.07)}
+.erow:last-child{border-bottom:none}
+.eava{width:34px;height:34px;border-radius:10px;background:rgba(235,192,76,.18);color:#EBC04C;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.erow .et{flex:1;display:flex;flex-direction:column}
+.erow .et span{opacity:.6;font-size:11px}
+.ebal{font-size:16px}
+.step{width:34px;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#fff;font-size:17px;cursor:pointer}
+.tedit{display:flex;flex-wrap:wrap;gap:7px;align-items:center;padding:10px 2px;border-bottom:1px solid rgba(255,255,255,.07)}
+.tedit input[type=text],.tedit input:not([type]){flex:1;min-width:110px;padding:9px 10px;border-radius:9px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:#fff;font-size:13px}
+.tedit .chk{display:flex;gap:5px;align-items:center;font-size:12px;opacity:.85}
+.pos{color:#7BE3A0}.neg{color:#FF9B8A}
+.status.pend{background:rgba(235,192,76,.16);color:#EBC04C}
+.neform{display:flex;flex-wrap:wrap;gap:7px;padding-top:12px}
+.neform input{flex:1;min-width:100px;padding:10px;border-radius:9px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:#fff;font-size:13px}
+#neMsg{width:100%;font-size:12px;color:#7BE3A0;min-height:15px}
+.trow .btn{margin-left:6px}
+</style>
+</head>
+<body data-view="admin" data-lock="emp">
+
+  <div class="map">
+    <img class="photo" id="mapPhoto" src="aerial.jpg" alt="">
+    <div class="tint" id="mapTint"></div>
+    <div class="shade"></div>
+  </div>
+
+  <header class="initial" id="header">
+    <div class="logo">
+      <div class="mark">A.S</div>
+      <div class="lname">A.S EARNING
+        <div class="who-line">INVEST · EARN · GROW</div>
+      </div>
+    </div>
+    <div class="search"><svg class="ph" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></svg> Search employees…</div>
+    <div class="head-right">
+      <div class="coinpill only-emp"><svg class="ph" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M184,89.57V84c0-25.08-37.83-44-88-44S8,58.92,8,84v40c0,20.89,26.25,37.49,64,42.46V172c0,25.08,37.83,44,88,44s88-18.92,88-44V132C248,111.3,222.58,94.68,184,89.57ZM232,132c0,13.22-30.79,28-72,28-3.73,0-7.43-.13-11.08-.37C170.49,151.77,184,139,184,124V105.74C213.87,110.19,232,122.27,232,132ZM72,150.25V126.46A183.74,183.74,0,0,0,96,128a183.74,183.74,0,0,0,24-1.54v23.79A163,163,0,0,1,96,152,163,163,0,0,1,72,150.25Zm96-40.32V124c0,8.39-12.41,17.4-32,22.87V123.5C148.91,120.37,159.84,115.71,168,109.93ZM96,56c41.21,0,72,14.78,72,28s-30.79,28-72,28S24,97.22,24,84,54.79,56,96,56ZM24,124V109.93c8.16,5.78,19.09,10.44,32,13.57v23.37C36.41,141.4,24,132.39,24,124Zm64,48v-4.17c2.63.1,5.29.17,8,.17,3.88,0,7.67-.13,11.39-.35A121.92,121.92,0,0,0,120,171.41v23.46C100.41,189.4,88,180.39,88,172Zm48,26.25V174.4a179.48,179.48,0,0,0,24,1.6,183.74,183.74,0,0,0,24-1.54v23.79a165.45,165.45,0,0,1-48,0Zm64-3.38V171.5c12.91-3.13,23.84-7.79,32-13.57V172C232,180.39,219.59,189.4,200,194.87Z"/></svg> <span id="pillBal">750</span> <small>coins</small></div>
+      <div class="viewtoggle">
+        <button id="btnAdmin" class="active">Admin</button>
+        <button id="btnEmp">Employee</button>
+      </div>
+      <div class="bell"><svg class="ph" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z"/></svg></div>
+      <div class="user">
+        <div class="ava" id="userAva">AD</div>
+        <div class="who"><b id="userName">Admin</b><span id="userRole">A.S EARNING</span></div>
+      </div>
+    </div>
+  <button id="logoutBtn" class="btn ghost">Logout</button></header>
+
+  <div class="leftcol">
+  <nav class="rail initial" id="rail">
+    <a href="#" class="active"><svg class="ph ic-admin" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M104,40H56A16,16,0,0,0,40,56v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,104,40Zm0,64H56V56h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,64H152V56h48v48Zm-96,32H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm0,64H56V152h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Zm0,64H152V152h48v48Z"/></svg><svg class="ph ic-emp" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M104,40H56A16,16,0,0,0,40,56v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,104,40Zm0,64H56V56h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,64H152V56h48v48Zm-96,32H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm0,64H56V152h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Zm0,64H152V152h48v48Z"/></svg><span>Dashboard</span></a>
+    <a href="#"><svg class="ph ic-admin" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M224,128a8,8,0,0,1-8,8H128a8,8,0,0,1,0-16h88A8,8,0,0,1,224,128ZM128,72h88a8,8,0,0,0,0-16H128a8,8,0,0,0,0,16Zm88,112H128a8,8,0,0,0,0,16h88a8,8,0,0,0,0-16ZM82.34,42.34,56,68.69,45.66,58.34A8,8,0,0,0,34.34,69.66l16,16a8,8,0,0,0,11.32,0l32-32A8,8,0,0,0,82.34,42.34Zm0,64L56,132.69,45.66,122.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Zm0,64L56,196.69,45.66,186.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Z"/></svg><svg class="ph ic-emp" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M224,128a8,8,0,0,1-8,8H128a8,8,0,0,1,0-16h88A8,8,0,0,1,224,128ZM128,72h88a8,8,0,0,0,0-16H128a8,8,0,0,0,0,16Zm88,112H128a8,8,0,0,0,0,16h88a8,8,0,0,0,0-16ZM82.34,42.34,56,68.69,45.66,58.34A8,8,0,0,0,34.34,69.66l16,16a8,8,0,0,0,11.32,0l32-32A8,8,0,0,0,82.34,42.34Zm0,64L56,132.69,45.66,122.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Zm0,64L56,196.69,45.66,186.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Z"/></svg><span>Tasks</span></a>
+    <a href="#"><svg class="ph ic-admin" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M184,89.57V84c0-25.08-37.83-44-88-44S8,58.92,8,84v40c0,20.89,26.25,37.49,64,42.46V172c0,25.08,37.83,44,88,44s88-18.92,88-44V132C248,111.3,222.58,94.68,184,89.57ZM232,132c0,13.22-30.79,28-72,28-3.73,0-7.43-.13-11.08-.37C170.49,151.77,184,139,184,124V105.74C213.87,110.19,232,122.27,232,132ZM72,150.25V126.46A183.74,183.74,0,0,0,96,128a183.74,183.74,0,0,0,24-1.54v23.79A163,163,0,0,1,96,152,163,163,0,0,1,72,150.25Zm96-40.32V124c0,8.39-12.41,17.4-32,22.87V123.5C148.91,120.37,159.84,115.71,168,109.93ZM96,56c41.21,0,72,14.78,72,28s-30.79,28-72,28S24,97.22,24,84,54.79,56,96,56ZM24,124V109.93c8.16,5.78,19.09,10.44,32,13.57v23.37C36.41,141.4,24,132.39,24,124Zm64,48v-4.17c2.63.1,5.29.17,8,.17,3.88,0,7.67-.13,11.39-.35A121.92,121.92,0,0,0,120,171.41v23.46C100.41,189.4,88,180.39,88,172Zm48,26.25V174.4a179.48,179.48,0,0,0,24,1.6,183.74,183.74,0,0,0,24-1.54v23.79a165.45,165.45,0,0,1-48,0Zm64-3.38V171.5c12.91-3.13,23.84-7.79,32-13.57V172C232,180.39,219.59,189.4,200,194.87Z"/></svg><svg class="ph ic-emp" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M184,89.57V84c0-25.08-37.83-44-88-44S8,58.92,8,84v40c0,20.89,26.25,37.49,64,42.46V172c0,25.08,37.83,44,88,44s88-18.92,88-44V132C248,111.3,222.58,94.68,184,89.57ZM232,132c0,13.22-30.79,28-72,28-3.73,0-7.43-.13-11.08-.37C170.49,151.77,184,139,184,124V105.74C213.87,110.19,232,122.27,232,132ZM72,150.25V126.46A183.74,183.74,0,0,0,96,128a183.74,183.74,0,0,0,24-1.54v23.79A163,163,0,0,1,96,152,163,163,0,0,1,72,150.25Zm96-40.32V124c0,8.39-12.41,17.4-32,22.87V123.5C148.91,120.37,159.84,115.71,168,109.93ZM96,56c41.21,0,72,14.78,72,28s-30.79,28-72,28S24,97.22,24,84,54.79,56,96,56ZM24,124V109.93c8.16,5.78,19.09,10.44,32,13.57v23.37C36.41,141.4,24,132.39,24,124Zm64,48v-4.17c2.63.1,5.29.17,8,.17,3.88,0,7.67-.13,11.39-.35A121.92,121.92,0,0,0,120,171.41v23.46C100.41,189.4,88,180.39,88,172Zm48,26.25V174.4a179.48,179.48,0,0,0,24,1.6,183.74,183.74,0,0,0,24-1.54v23.79a165.45,165.45,0,0,1-48,0Zm64-3.38V171.5c12.91-3.13,23.84-7.79,32-13.57V172C232,180.39,219.59,189.4,200,194.87Z"/></svg><span class="lbl-admin">Coins</span><span class="lbl-emp">My Coins</span></a>
+    <a href="#"><svg class="ph ic-admin" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M216,64H56a8,8,0,0,1,0-16H192a8,8,0,0,0,0-16H56A24,24,0,0,0,32,56V184a24,24,0,0,0,24,24H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64Zm0,128H56a8,8,0,0,1-8-8V78.63A23.84,23.84,0,0,0,56,80H216Zm-48-60a12,12,0,1,1,12,12A12,12,0,0,1,168,132Z"/></svg><svg class="ph ic-emp" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M216,64H56a8,8,0,0,1,0-16H192a8,8,0,0,0,0-16H56A24,24,0,0,0,32,56V184a24,24,0,0,0,24,24H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64Zm0,128H56a8,8,0,0,1-8-8V78.63A23.84,23.84,0,0,0,56,80H216Zm-48-60a12,12,0,1,1,12,12A12,12,0,0,1,168,132Z"/></svg><span class="lbl-admin">Withdrawals</span><span class="lbl-emp">Withdraw</span></a>
+    <a href="#"><svg class="ph ic-admin" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M117.25,157.92a60,60,0,1,0-66.5,0A95.83,95.83,0,0,0,3.53,195.63a8,8,0,1,0,13.4,8.74,80,80,0,0,1,134.14,0,8,8,0,0,0,13.4-8.74A95.83,95.83,0,0,0,117.25,157.92ZM40,108a44,44,0,1,1,44,44A44.05,44.05,0,0,1,40,108Zm210.14,98.7a8,8,0,0,1-11.07-2.33A79.83,79.83,0,0,0,172,168a8,8,0,0,1,0-16,44,44,0,1,0-16.34-84.87,8,8,0,1,1-5.94-14.85,60,60,0,0,1,55.53,105.64,95.83,95.83,0,0,1,47.22,37.71A8,8,0,0,1,250.14,206.7Z"/></svg><svg class="ph ic-emp" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></svg><span class="lbl-admin">Employees</span><span class="lbl-emp">History</span></a>
+  </nav>
+
+  <!-- ADMIN DOCK -->
+  <div class="dock only-admin">
+    <section class="panel tile tasks-tile initial" id="aTasks">
+      <div class="head"><h3>Tasks</h3><button class="icon-btn" style="display:none"><svg class="ph" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z"/></svg></button></div>
+      <div id="aTaskList"></div>
+      <div class="trow"><div class="tic"><svg class="ph" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M222.37,158.46l-47.11-21.11-.13-.06a16,16,0,0,0-15.17,1.4,8.12,8.12,0,0,0-.75.56L134.87,160c-15.42-7.49-31.34-23.29-38.83-38.51l20.78-24.71c.2-.25.39-.5.57-.77a16,16,0,0,0,1.32-15.06l0-.12L97.54,33.64a16,16,0,0,0-16.62-9.52A56.26,56.26,0,0,0,32,80c0,79.4,64.6,144,144,144a56.26,56.26,0,0,0,55.88-48.92A16,16,0,0,0,222.37,158.46ZM176,208A128.14,128.14,0,0,1,48,80,40.2,40.2,0,0,1,82.87,40a.61.61,0,0,0,0,.12l21,47L83.2,111.86a6.13,6.13,0,0,0-.57.77,16,16,0,0,0-1,15.7c9.06,18.53,27.73,37.06,46.46,46.11a16,16,0,0,0,15.75-1.14,8.44,8.44,0,0,0,.74-.56L168.89,152l47,21.05h0s.08,0,.11,0A40.21,40.21,0,0,1,176,208Z"/></svg></div><div class="tt"><b class="recTitle">Task 3</b><span>Contact your receptionist</span></div></div>
+    </section>
+    <section class="panel tile emp-tile initial" id="aEmps">
+      <div class="head"><h3>Employees</h3><button class="icon-btn"><svg class="ph" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M256,136a8,8,0,0,1-8,8H232v16a8,8,0,0,1-16,0V144H200a8,8,0,0,1,0-16h16V112a8,8,0,0,1,16,0v16h16A8,8,0,0,1,256,136Zm-57.87,58.85a8,8,0,0,1-12.26,10.3C165.75,181.19,138.09,168,108,168s-57.75,13.19-77.87,37.15a8,8,0,0,1-12.25-10.3c14.94-17.78,33.52-30.41,54.17-37.17a68,68,0,1,1,71.9,0C164.6,164.44,183.18,177.07,198.13,194.85ZM108,152a52,52,0,1,0-52-52A52.06,52.06,0,0,0,108,152Z"/></svg></button></div>
+      <div id="empList"></div>
+    </section>
+  </div>
+
+  <!-- EMPLOYEE DOCK -->
+  <div class="dock only-emp">
+    <section class="panel tile tasks-wide initial" id="eTasks">
+      <div class="head"><h3>Tasks</h3></div>
+      <div id="eTaskList"></div>
+      <div class="trow"><div class="tic"><svg class="ph" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M222.37,158.46l-47.11-21.11-.13-.06a16,16,0,0,0-15.17,1.4,8.12,8.12,0,0,0-.75.56L134.87,160c-15.42-7.49-31.34-23.29-38.83-38.51l20.78-24.71c.2-.25.39-.5.57-.77a16,16,0,0,0,1.32-15.06l0-.12L97.54,33.64a16,16,0,0,0-16.62-9.52A56.26,56.26,0,0,0,32,80c0,79.4,64.6,144,144,144a56.26,56.26,0,0,0,55.88-48.92A16,16,0,0,0,222.37,158.46ZM176,208A128.14,128.14,0,0,1,48,80,40.2,40.2,0,0,1,82.87,40a.61.61,0,0,0,0,.12l21,47L83.2,111.86a6.13,6.13,0,0,0-.57.77,16,16,0,0,0-1,15.7c9.06,18.53,27.73,37.06,46.46,46.11a16,16,0,0,0,15.75-1.14,8.44,8.44,0,0,0,.74-.56L168.89,152l47,21.05h0s.08,0,.11,0A40.21,40.21,0,0,1,176,208Z"/></svg></div><div class="tt"><b class="recTitle">Task 3</b><span>Contact your receptionist</span></div><button class="btn gold" id="recGo">Open</button></div>
+    
+      <div class="wlbl" style="margin-top:12px">Do the task and send the screenshot to your receptionist on Telegram.</div>
+    </section>
+    <section class="panel tile week-tile initial" id="eWeek">
+      <h3>This week</h3>
+      <div class="week-nums">
+        <div class="m"><b id="wkEarned">+150</b><span>Earned</span></div>
+        <div class="m"><b id="wkDone">0/3</b><span>Tasks done</span></div>
+        <div class="m"><b id="wkOut">0</b><span>Withdrawn</span></div>
+      </div>
+      <div class="arow" style="margin-top:16px"><span style="flex:1">Last request</span><span class="status paid" id="wkReq">None</span></div>
+    </section>
+  </div>
+  </div><!-- /leftcol -->
+
+  <!-- RIGHT: ADMIN -->
+  <div class="right only-admin">
+    <section class="panel overview initial" id="aOver">
+      <div class="head"><h3>Overview</h3><button class="icon-btn"><svg class="ph" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,64V168a8,8,0,0,1-16,0V83.31L69.66,197.66a8,8,0,0,1-11.32-11.32L172.69,72H88a8,8,0,0,1,0-16H192A8,8,0,0,1,200,64Z"/></svg></button></div>
+      <div class="stat-grid">
+        <div class="stat"><div class="lbl">Total coins</div><div class="big"><span id="stTotal">0</span></div></div>
+        <div class="stat"><div class="lbl">Employees</div><div class="big"><span id="stEmps">4</span></div></div>
+        <div class="stat"><div class="lbl">Pending withdrawals</div><div class="big"><span id="stPend">2</span></div></div>
+        <div class="stat"><div class="lbl">Tasks</div><div class="big"><span id="stTasks">3</span></div></div>
+      </div>
+    </section>
+    <section class="panel tile initial" id="aWd">
+      <div class="head"><h3>Withdrawals</h3></div>
+      <div id="wdList"></div>
+    </section>
+    <section class="panel tile initial" id="aAct" style="flex:1">
+      <div class="head"><h3>Activity</h3></div>
+      <div id="actList"></div>
+    </section>
+  </div>
+
+  <!-- RIGHT: EMPLOYEE -->
+  <div class="right only-emp">
+    <section class="panel tile initial" id="eBal">
+      <h3>My Coins</h3>
+      <div class="bigbal"><div class="cic"><svg class="ph" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M184,89.57V84c0-25.08-37.83-44-88-44S8,58.92,8,84v40c0,20.89,26.25,37.49,64,42.46V172c0,25.08,37.83,44,88,44s88-18.92,88-44V132C248,111.3,222.58,94.68,184,89.57ZM232,132c0,13.22-30.79,28-72,28-3.73,0-7.43-.13-11.08-.37C170.49,151.77,184,139,184,124V105.74C213.87,110.19,232,122.27,232,132ZM72,150.25V126.46A183.74,183.74,0,0,0,96,128a183.74,183.74,0,0,0,24-1.54v23.79A163,163,0,0,1,96,152,163,163,0,0,1,72,150.25Zm96-40.32V124c0,8.39-12.41,17.4-32,22.87V123.5C148.91,120.37,159.84,115.71,168,109.93ZM96,56c41.21,0,72,14.78,72,28s-30.79,28-72,28S24,97.22,24,84,54.79,56,96,56ZM24,124V109.93c8.16,5.78,19.09,10.44,32,13.57v23.37C36.41,141.4,24,132.39,24,124Zm64,48v-4.17c2.63.1,5.29.17,8,.17,3.88,0,7.67-.13,11.39-.35A121.92,121.92,0,0,0,120,171.41v23.46C100.41,189.4,88,180.39,88,172Zm48,26.25V174.4a179.48,179.48,0,0,0,24,1.6,183.74,183.74,0,0,0,24-1.54v23.79a165.45,165.45,0,0,1-48,0Zm64-3.38V171.5c12.91-3.13,23.84-7.79,32-13.57V172C232,180.39,219.59,189.4,200,194.87Z"/></svg></div><div class="n"><span id="myBal">0</span> <small>coins</small></div></div>
+      <div class="minirow">
+        <div class="m"><b id="myDone">0/3</b><span>Tasks done</span></div>
+        <div class="m"><b id="myPend">0</b><span>On hold</span></div>
+      </div>
+    </section>
+    <section class="panel tile initial" id="eWd">
+      <h3>Withdraw</h3>
+      <div class="wform"><input id="wdAmt" type="number" min="0" placeholder="Amount"><button class="btn gold" id="wdGo">Withdraw</button></div>
+      <div class="wlbl">Minimum 500 coins</div>
+      <div class="wmsg" id="wdMsg"></div>
+    </section>
+    <section class="panel tile initial" id="eHist" style="flex:1">
+      <div class="head"><h3>History</h3></div>
+      <div id="histList"></div>
+    </section>
+  </div>
+
+
+  <div class="pop-overlay" id="shotPop">
+    <div class="pop-card">
+      <div class="pic"><svg class="ph" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,56H180.4L155.7,32.16a8,8,0,0,0-5.6-2.33H105.9a8,8,0,0,0-5.6,2.33L75.6,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,5.6-2.33L110.3,45.83h35.4L170.4,69.67A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,184a40,40,0,1,1,40-40A40,40,0,0,1,128,184Zm0-64a24,24,0,1,0,24,24A24,24,0,0,0,128,120Z"/></svg></div>
+      <p>Please send your screenshot to your receptionist</p>
+      <button class="btn gold" id="shotPopOk">OK</button>
+    </div>
+  </div>
+
+<div id="loginGate"><div class="lg-card">
+  <div class="mark">A.S</div><h2>A.S EARNING</h2><div class="tag">INVEST · EARN · GROW</div>
+  <input id="loginId" placeholder="Login ID" autocomplete="username">
+  <input id="loginPw" type="password" placeholder="Password" autocomplete="current-password">
+  <button class="btn gold" id="loginBtn">Login</button>
+  <div id="loginErr"></div>
+</div></div>
+<script src="supabase.min.js"></script>
+<script src="gsap.min.js"></script>
+<script>
+// A.S EARNING — employee page (Supabase wired)
+const SB_URL = 'https://flqgoftvblxvwgwembcx.supabase.co';
+const SB_KEY = 'sb_publishable_JS-nPAF_pUw7Ea9Tkm9NkQ_QBUXVTUv';
+const TG_LINK = 'https://t.me/m/dJ1wzeKbNGZl';
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+const $ = s => document.querySelector(s);
+const todayIST = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+let me = null, profile = null, myTasks = [], myDone = new Set(), ledger = [], wds = [];
+
+document.querySelector('.viewtoggle')?.remove();
+function initials(n){ return n.split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
+function balance(){ return ledger.reduce((a,r)=>a+r.amount,0); }
+function onHold(){ return wds.filter(w=>w.status==='pending').reduce((a,w)=>a+w.amount,0); }
+function available(){ return balance() - onHold(); }
+
+async function loadAll(){
+  const day = todayIST();
+  const [t,c,l,w] = await Promise.all([
+    sb.from('tasks').select('*').eq('day', day).order('slot'),
+    sb.from('completions').select('*').eq('employee', me.id).eq('day', day),
+    sb.from('coin_ledger').select('*').eq('employee', me.id).order('created_at', { ascending:false }).limit(60),
+    sb.from('withdrawals').select('*').eq('employee', me.id).order('created_at', { ascending:false }).limit(15)
+  ]);
+  myTasks = t.data || []; myDone = new Set((c.data||[]).map(r=>r.slot));
+  ledger = l.data || []; wds = w.data || [];
+  render();
+}
+function render(){
+  $('#pillBal').textContent = balance();
+  $('#myBal').textContent = balance();
+  $('#myPend').textContent = onHold();
+  $('#myDone').textContent = myDone.size + '/3';
+  // tasks
+  const list = $('#eTaskList'); list.innerHTML = '';
+  [1,2].forEach(slot => {
+    const t = myTasks.find(x=>x.slot===slot);
+    const row = document.createElement('div'); row.className = 'trow';
+    if(!t){ row.innerHTML = `<div class="tt"><b>Task ${slot}</b><span>Not set yet</span></div>`; }
+    else {
+      const done = myDone.has(slot);
+      row.innerHTML = `<div class="tt"><b>Task ${slot}${t.prepaid?' · Prepaid':''}</b><span>${t.title} · ₹${t.reward}</span></div>` +
+        (done ? `<span class="status paid">Done</span>` :
+        `<button class="btn ghost" data-open="${slot}">Open</button><button class="btn gold" data-done="${slot}">Done</button>`);
+    }
+    list.appendChild(row);
+  });
+  list.querySelectorAll('[data-open]').forEach(b => b.onclick = () => {
+    const t = myTasks.find(x=>x.slot==+b.dataset.open); if(t) window.open(t.url, '_blank');
+  });
+  list.querySelectorAll('[data-done]').forEach(b => b.onclick = () => markDone(+b.dataset.done));
+  const rec = $('#recGo');
+  if(myDone.has(3)){ rec.textContent = 'Done'; rec.disabled = true; }
+  // week + history
+  const wk = ledger.filter(r => (Date.now() - new Date(r.created_at)) < 7*864e5);
+  $('#wkEarned').textContent = '+' + wk.filter(r=>r.amount>0).reduce((a,r)=>a+r.amount,0);
+  $('#wkDone').textContent = myDone.size + '/3';
+  $('#wkOut').textContent = wds.filter(w=>w.status==='paid').reduce((a,w)=>a+w.amount,0);
+  const last = wds[0];
+  const rq = $('#wkReq');
+  rq.textContent = last ? (last.amount + ' · ' + last.status) : 'None';
+  rq.className = 'status ' + (last ? (last.status==='paid' ? 'paid' : 'pend') : 'paid');
+  const labels = { admin_add:'Added by admin', admin_remove:'Removed by admin', task_reward:'Task reward', withdraw_paid:'Withdrawal' };
+  const hist = $('#histList'); hist.innerHTML = '';
+  ledger.slice(0,15).forEach(r => {
+    const d = document.createElement('div'); d.className = 'arow';
+    d.innerHTML = `<span style="flex:1">${labels[r.type]||r.type}${r.note?' · '+r.note:''}</span><b class="${r.amount>=0?'pos':'neg'}">${r.amount>=0?'+':''}${r.amount}</b>`;
+    hist.appendChild(d);
+  });
+  if(!ledger.length) hist.innerHTML = '<div class="arow"><span style="flex:1">No activity yet</span></div>';
+}
+async function markDone(slot){
+  const { error } = await sb.from('completions').insert({ employee: me.id, day: todayIST(), slot });
+  if(error){ alert(error.message); return; }
+  myDone.add(slot); render();
+  if(slot === 3){ location.href = TG_LINK; return; }
+  $('#shotPop').classList.add('show');
+}
+$('#recGo').onclick = () => markDone(3);
+$('#shotPopOk').onclick = () => $('#shotPop').classList.remove('show');
+$('#shotPop').addEventListener('click', e => { if(e.target.id==='shotPop') e.target.classList.remove('show'); });
+
+$('#wdGo').onclick = async () => {
+  const amt = parseInt($('#wdAmt').value, 10);
+  const msg = $('#wdMsg');
+  const BLOCK = 'Withdrawals below 500 coins are not allowed. Kindly complete the prepaid task.';
+  const prepaidOpen = myTasks.some(t => t.prepaid && !myDone.has(t.slot));
+  if(!amt || amt <= 0){ msg.textContent = 'Enter an amount.'; return; }
+  if(amt < 500 || prepaidOpen){ msg.textContent = BLOCK; return; }
+  if(amt > available()){ msg.textContent = 'Amount is more than your available balance.'; return; }
+  const { error } = await sb.from('withdrawals').insert({ employee: me.id, amount: amt });
+  if(error){ msg.textContent = error.message; return; }
+  msg.textContent = 'Request sent.';
+  $('#wdAmt').value = '';
+  await loadAll();
+};
+
+// ---- auth gate ----
+async function boot(){
+  const { data } = await sb.auth.getSession();
+  if(!data.session){ $('#loginGate').classList.add('show'); return; }
+  me = data.session.user;
+  const { data: p } = await sb.from('profiles').select('*').eq('id', me.id).single();
+  if(!p){ $('#loginErr').textContent = 'Account not set up. Contact admin.'; $('#loginGate').classList.add('show'); return; }
+  if(p.role !== 'employee'){ $('#loginErr').textContent = 'This is the employee page. Admins use the admin link.'; $('#loginGate').classList.add('show'); return; }
+  if(!p.active){ $('#loginErr').textContent = 'Account deactivated. Contact admin.'; $('#loginGate').classList.add('show'); return; }
+  profile = p;
+  $('#userName').textContent = p.name; $('#userRole').textContent = 'Employee · ' + (p.login_id || '');
+  $('#userAva').textContent = initials(p.name);
+  await loadAll();
+  gsap.from('.initial', { y: 26, opacity: 0, duration: .8, stagger: .06, ease: 'power3.out', clearProps: 'all' });
+}
+$('#loginBtn').onclick = async () => {
+  const id = $('#loginId').value.trim(), pw = $('#loginPw').value;
+  const email = id.includes('@') ? id : id.toLowerCase() + '@asearning.app';
+  $('#loginErr').textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+  if(error){ $('#loginErr').textContent = 'Wrong ID or password.'; return; }
+  location.reload();
+};
+$('#logoutBtn').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+boot();
+
+</script>
+</body></html>
