@@ -657,20 +657,21 @@ async function loadAll(){
 }
 function render(){
   $('#stTotal').textContent = Object.values(bals).reduce((a,b)=>a+b,0);
-  $('#stEmps').textContent = emps.length;
+  $('#stEmps').textContent = emps.filter(e => e.active).length;
   $('#stPend').textContent = wds.filter(w=>w.status==='pending').length;
   $('#stTasks').textContent = tasks.length + 1;
   // employees — tapping a profile expands its login ID + password
   const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const el = $('#empList'); el.innerHTML = '';
-  emps.forEach(e => {
+  emps.filter(e => e.active).forEach(e => {
     const row = document.createElement('div'); row.className = 'erow';
     row.innerHTML = `<div class="eava" data-prof="${e.id}" style="cursor:pointer">${initials(e.name)}</div><div class="et" data-prof="${e.id}" style="cursor:pointer"><b>${e.name}</b><span>${e.login_id||''}${e.active?'':' · off'}</span></div><b class="ebal">${bals[e.id]||0}</b>` +
       `<button class="step" data-rm="${e.id}">−</button><button class="step" data-ad="${e.id}">+</button>`;
     el.appendChild(row);
     const det = document.createElement('div'); det.id = 'det-' + e.id;
     det.style.cssText = 'display:none;padding:10px 14px;margin:-4px 0 10px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);font-size:14px';
-    det.innerHTML = `<div>Login ID: <b>${esc(e.login_id || '')}</b></div><div style="margin-top:4px">Password: <b>${e.password ? esc(e.password) : 'Not saved — created before passwords were stored'}</b></div>`;
+    det.innerHTML = `<div>Login ID: <b>${esc(e.login_id || '')}</b></div><div style="margin-top:4px">Password: <b>${e.password ? esc(e.password) : 'Not saved — created before passwords were stored'}</b></div>` +
+      `<div style="margin-top:12px"><button data-del="${e.id}" style="padding:8px 16px;border-radius:999px;border:1px solid rgba(255,120,100,.55);background:rgba(255,90,70,.12);color:#FF9B8A;font-size:13px;font-weight:600;cursor:pointer">Remove employee</button></div>`;
     el.appendChild(det);
   });
   el.querySelectorAll('[data-prof]').forEach(b => b.onclick = () => {
@@ -679,6 +680,7 @@ function render(){
   });
   el.querySelectorAll('[data-ad]').forEach(b => b.onclick = () => moveCoins(b.dataset.ad, 50));
   el.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => moveCoins(b.dataset.rm, -50));
+  el.querySelectorAll('[data-del]').forEach(b => b.onclick = () => askRemove(b.dataset.del));
   // tasks (editable slots 1 & 2; Task 3 is the fixed receptionist redirect)
   const tl = $('#aTaskList'); tl.innerHTML = '';
   [1,2].forEach(slot => {
@@ -753,6 +755,42 @@ function showConfirmed(slot){
 }
 _confPop.querySelector('#confOk').onclick = () => { _confPop.style.display = 'none'; };
 _confPop.addEventListener('click', e => { if(e.target === _confPop) _confPop.style.display = 'none'; });
+// Remove employee (user order 2026-11-15): sets profiles.active = false.
+// The employee page already refuses inactive accounts at login ("Account
+// deactivated. Contact admin."), and the row disappears from this list and
+// the headcount. Nothing is deleted — coin/task/withdrawal history stays in
+// the records, and the name still resolves on old withdrawals and activity.
+const _rmPop = document.createElement('div');
+_rmPop.style.cssText = _confPop.style.cssText;
+_rmPop.innerHTML = `<div style="width:min(320px,86vw);background:#101b3a;border:1px solid rgba(255,120,100,.45);border-radius:18px;padding:28px 24px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+  <div style="font-size:20px;font-weight:700;color:#F3EFE6">Remove employee?</div>
+  <div id="rmMsg" style="margin-top:8px;font-size:14px;color:#B9B2A6;line-height:1.5"></div>
+  <div style="margin-top:20px;display:flex;gap:10px;justify-content:center">
+    <button id="rmCancel" style="padding:11px 22px;border-radius:999px;background:transparent;border:1px solid rgba(255,255,255,.35);color:#F3EFE6;font-size:15px;font-weight:600;cursor:pointer">Cancel</button>
+    <button id="rmGo" style="padding:11px 22px;border:none;border-radius:999px;background:#c0392b;color:#fff;font-size:15px;font-weight:700;cursor:pointer">Remove</button>
+  </div></div>`;
+document.body.appendChild(_rmPop);
+let _rmId = null;
+function askRemove(id){
+  const e = emps.find(x => x.id === id); if(!e) return;
+  _rmId = id;
+  document.getElementById('rmMsg').textContent = e.name + ' will no longer be able to log in and will disappear from this list. Their coin and task history stays in the records.';
+  _rmPop.style.display = 'flex';
+}
+function _rmClose(){ _rmPop.style.display = 'none'; _rmId = null; }
+_rmPop.querySelector('#rmCancel').onclick = _rmClose;
+_rmPop.addEventListener('click', e => { if(e.target === _rmPop) _rmClose(); });
+_rmPop.querySelector('#rmGo').onclick = async () => {
+  if(!_rmId) return;
+  const id = _rmId; _rmClose();
+  let { error } = await sb.from('profiles').update({ active: false }).eq('id', id);
+  if(error && /row-level security/i.test(error.message || '')){
+    await sb.auth.refreshSession();
+    ({ error } = await sb.from('profiles').update({ active: false }).eq('id', id));
+  }
+  if(error){ alert(error.message); return; }
+  await loadAll();
+};
 async function decide(wdId, ok){
   const w = wds.find(x=>x.id===wdId); if(!w) return;
   if(ok){
