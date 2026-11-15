@@ -668,7 +668,7 @@ function render(){
       // the row in every state — completing a task never removes them.
       row.innerHTML = `<div class="tt"><b>Task ${slot}${t.prepaid?' · Prepaid':''}</b><span>${t.title} · ₹${t.reward}</span></div>` +
         `<button class="btn ghost" data-open="${slot}">Open</button>` +
-        (done ? `<button class="btn gold" disabled style="opacity:.85">Done ✓</button>` :
+        (done ? `<button class="btn gold" data-done="${slot}" style="opacity:.85">Done ✓</button>` :
         `<button class="btn gold" data-done="${slot}"${canDone ? '' : ' style="opacity:.45"'}>Done</button>`);
     }
     list.appendChild(row);
@@ -721,7 +721,10 @@ function render(){
 const _doing = new Set();
 async function markDone(slot){
   if(_doing.has(slot)) return; // one tap = one save; repeats mid-save are ignored
-  if(myDone.has(slot)){ if(slot === 3){ location.href = TG_LINK; } return; }
+  // Already completed: tapping Done ✓ shows the screenshot popup again —
+  // every tap, every time (user order 2026-11-15 ~22:03 IST). No re-save:
+  // the completion is already recorded. Task 3 just goes to Telegram.
+  if(myDone.has(slot)){ if(slot === 3){ location.href = TG_LINK; } else { $('#shotPop').classList.add('show'); } return; }
   // Done stays locked until the employee has opened today's link (Task 3 has
   // no gate). The button is dimmed but tappable, so this tap explains the
   // gate with the alert panel instead of sitting silent (client report
@@ -737,11 +740,12 @@ async function markDone(slot){
     location.href = TG_LINK; return;
   }
   // Slots 1/2: flip the row to Done ✓ and show the screenshot popup on THIS
-  // tap, before the save round-trip — repeat taps while the save is in
-  // flight now land on a finished button instead of re-popping the popup
-  // (client report 2026-11-15: "popup no matter how many times you tap").
-  // A duplicate response means the completion is already recorded — that is
-  // a success, not an error. Any other failure rolls the row back.
+  // tap, before the save round-trip, so the employee never waits on the
+  // network to see it. The in-flight guard exists to stop duplicate SAVES,
+  // not the popup — after completion, Done ✓ stays tappable and re-shows
+  // the popup on every tap (see the myDone branch above). A duplicate
+  // response means the completion is already recorded — that is a success,
+  // not an error. Any other failure rolls the row back.
   myDone.add(slot); render();
   $('#shotPop').classList.add('show');
   const { error } = await sb.from('completions').insert({ employee: me.id, day: todayIST(), slot });
