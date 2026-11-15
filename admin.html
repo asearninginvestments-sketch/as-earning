@@ -695,8 +695,14 @@ async function moveCoins(empId, amt){
 async function saveTask(slot){
   const title = $('#tt'+slot).value.trim(), url = $('#tu'+slot).value.trim(), prepaid = $('#tp'+slot).checked;
   if(!title || !url){ alert('Task needs a title and a link.'); return; }
-  const { error } = await sb.from('tasks').upsert(
-    { day: todayIST(), slot, title, url, prepaid, reward: 50 }, { onConflict: 'day,slot' });
+  const row = { day: todayIST(), slot, title, url, prepaid, reward: 50 };
+  let { error } = await sb.from('tasks').upsert(row, { onConflict: 'day,slot' });
+  if(error && /row-level security/i.test(error.message || '')){
+    // A stale phone session can make the database refuse the write even for
+    // the admin — refresh the session and retry once before bothering anyone.
+    await sb.auth.refreshSession();
+    ({ error } = await sb.from('tasks').upsert(row, { onConflict: 'day,slot' }));
+  }
   if(error){ alert(error.message); return; }
   await loadAll();
 }
