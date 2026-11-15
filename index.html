@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>A.S EARNING</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://flqgoftvblxvwgwembcx.supabase.co" crossorigin>
+<link rel="preload" as="image" href="aerial-sm.webp" media="(max-width:760px)">
+<link rel="preload" as="image" href="aerial.webp" media="(min-width:761px)">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -118,7 +122,7 @@
     position:relative;z-index:15;width:196px;flex:none;
     margin-top:clamp(0px,calc(100vh - 700px),173px);
     background:var(--panel);border:1px solid var(--card-line);border-radius:var(--radius);
-    backdrop-filter:blur(20px);padding:12px;box-shadow:0 24px 50px rgba(0,0,0,.42);
+    backdrop-filter:blur(14px);padding:12px;box-shadow:0 24px 50px rgba(0,0,0,.42);
     display:flex;flex-direction:column;gap:3px;
   }
   .rail a{
@@ -133,7 +137,7 @@
   /* ---------- PANELS (shared) ---------- */
   .panel{
     background:var(--panel);border:1px solid var(--card-line);border-radius:var(--radius);
-    backdrop-filter:blur(20px);box-shadow:0 24px 50px rgba(0,0,0,.42);
+    backdrop-filter:blur(14px);box-shadow:0 24px 50px rgba(0,0,0,.42);
   }
   .panel h3{font-size:19px;font-weight:700;letter-spacing:-.01em}
   .panel .sub{font-size:12.5px;color:var(--muted);font-weight:500;margin-top:3px}
@@ -427,6 +431,22 @@
   .pop-card .btn{width:100%;min-height:46px}
 
   body[data-lock="emp"] .viewtoggle, body[data-lock="admin"] .viewtoggle{display:none}
+
+  /* ---------- performance: phones (<=760px) ----------
+     backdrop-filter over a fixed full-screen photo forces a re-blur of
+     every glass surface on every scroll frame - the main scroll-jank
+     source. On phones the blur is swapped for a slightly deeper tint of
+     the same colour (panel bg is already 78% opaque dark green). */
+  @media (max-width:760px){
+    /* panels are in-flow (display:contents columns): their backdrop-filter was also
+       what lifted them above the fixed map in paint order - position:relative
+       restores that lift without the blur cost */
+    .panel{position:relative}
+    .panel,.rail,.search,.bell,.user,.viewtoggle,.coinpill,.pin .tag,.layers button,.pop-overlay{backdrop-filter:none;-webkit-backdrop-filter:none}
+    .panel,.rail{background:rgba(11,21,13,.9)}
+    .search,.bell,.user,.viewtoggle,.coinpill{background:rgba(10,18,11,.88)}
+    .pin .tag{background:rgba(10,18,11,.92)}
+  }
 </style>
 
 <style>
@@ -440,6 +460,7 @@
 .lg-card input::placeholder{color:rgba(255,255,255,.45)}
 .lg-card .btn{width:100%;margin-top:10px;padding:13px}
 #loginErr{color:#FF9B8A;font-size:13px;min-height:18px;margin-top:10px}
+@media (max-width:760px){#loginGate{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(6,10,8,.82)}}
 #logoutBtn{margin-left:10px}
 .erow{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid rgba(255,255,255,.07)}
 .erow:last-child{border-bottom:none}
@@ -462,7 +483,7 @@
 <body data-view="admin" data-lock="emp">
 
   <div class="map">
-    <img class="photo" id="mapPhoto" src="aerial.jpg" alt="">
+    <picture><source media="(max-width:760px)" srcset="aerial-sm.webp"><source media="(min-width:761px)" srcset="aerial.webp"><img class="photo" id="mapPhoto" src="aerial.jpg" alt="" decoding="async" fetchpriority="high"></picture>
     <div class="tint" id="mapTint"></div>
     <div class="shade"></div>
   </div>
@@ -593,7 +614,7 @@
   </div>
 </div></div>
 <script src="supabase.min.js"></script>
-<script src="gsap.min.js"></script>
+<script defer src="gsap.min.js"></script>
 <script>
 // A.S EARNING — employee page (Supabase wired)
 const SB_URL = 'https://flqgoftvblxvwgwembcx.supabase.co';
