@@ -755,7 +755,8 @@ const _fp = setInterval(() => {
     const { error } = await sb.auth.updateUser({ password: p1 });
     if(error){ m.textContent = error.message; return; }
     recovering = false; history.replaceState(null, '', location.pathname);
-    document.getElementById('loginGate').classList.remove('show'); showGatePanel('loginMain'); loadAll();
+    document.getElementById('loginGate').classList.remove('show'); showGatePanel('loginMain');
+    try { await loadAll(); } catch(e) { console.error(e); } reveal();
   });
   sb.auth.onAuthStateChange(ev => { if(ev === 'PASSWORD_RECOVERY'){ recovering = true; document.getElementById('loginGate').classList.add('show'); showGatePanel('fpNew'); } });
 }, 50);
@@ -770,9 +771,20 @@ async function boot(){
   if(!p || p.role !== 'admin'){ $('#loginGate').classList.add('show'); return; }
   $('#userName').textContent = p.name; $('#userRole').textContent = 'Admin';
   $('#userAva').textContent = initials(p.name);
-  await loadAll();
-  gsap.from('.initial', { y: 26, opacity: 0, duration: .8, stagger: .06, ease: 'power3.out', clearProps: 'all' });
+  try { await loadAll(); } catch(e) { console.error(e); }
+  reveal();
 }
+// Dashboard tiles start at opacity:0 (CSS .initial). Remove that class BEFORE
+// animating, or GSAP reads the end opacity as 0 and the UI stays invisible.
+let revealed = false;
+function reveal(){
+  if(revealed) return; revealed = true;
+  const els = document.querySelectorAll('.initial');
+  els.forEach(el => el.classList.remove('initial'));
+  if(window.gsap) gsap.from(els, { y: 26, opacity: 0, duration: .8, stagger: .06, ease: 'power3.out', clearProps: 'all' });
+}
+// Never leave a blank background: if boot stalls (slow network), show the gate.
+setTimeout(() => { if(!revealed && !recovering) $('#loginGate').classList.add('show'); }, 9000);
 $('#loginBtn').onclick = async () => {
   const email = $('#loginId').value.trim(), pw = $('#loginPw').value;
   $('#loginErr').textContent = '';
