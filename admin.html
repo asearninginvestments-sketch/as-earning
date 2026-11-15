@@ -639,13 +639,22 @@ function render(){
   $('#stEmps').textContent = emps.length;
   $('#stPend').textContent = wds.filter(w=>w.status==='pending').length;
   $('#stTasks').textContent = tasks.length + 1;
-  // employees
+  // employees — tapping a profile expands its login ID + password
+  const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const el = $('#empList'); el.innerHTML = '';
   emps.forEach(e => {
     const row = document.createElement('div'); row.className = 'erow';
-    row.innerHTML = `<div class="eava">${initials(e.name)}</div><div class="et"><b>${e.name}</b><span>${e.login_id||''}${e.active?'':' · off'}</span></div><b class="ebal">${bals[e.id]||0}</b>` +
+    row.innerHTML = `<div class="eava" data-prof="${e.id}" style="cursor:pointer">${initials(e.name)}</div><div class="et" data-prof="${e.id}" style="cursor:pointer"><b>${e.name}</b><span>${e.login_id||''}${e.active?'':' · off'}</span></div><b class="ebal">${bals[e.id]||0}</b>` +
       `<button class="step" data-rm="${e.id}">−</button><button class="step" data-ad="${e.id}">+</button>`;
     el.appendChild(row);
+    const det = document.createElement('div'); det.id = 'det-' + e.id;
+    det.style.cssText = 'display:none;padding:10px 14px;margin:-4px 0 10px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);font-size:14px';
+    det.innerHTML = `<div>Login ID: <b>${esc(e.login_id || '')}</b></div><div style="margin-top:4px">Password: <b>${e.password ? esc(e.password) : 'Not saved — created before passwords were stored'}</b></div>`;
+    el.appendChild(det);
+  });
+  el.querySelectorAll('[data-prof]').forEach(b => b.onclick = () => {
+    const d = document.getElementById('det-' + b.dataset.prof);
+    if(d) d.style.display = d.style.display === 'none' ? '' : 'none';
   });
   el.querySelectorAll('[data-ad]').forEach(b => b.onclick = () => moveCoins(b.dataset.ad, 50));
   el.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => moveCoins(b.dataset.rm, -50));
@@ -728,7 +737,7 @@ async function createEmployee(){
   const { data, error } = await tmp.auth.signUp({ email: lid + '@asearning.app', password: pw });
   if(error){ msg.textContent = error.message; return; }
   if(!data.user){ msg.textContent = 'Could not create. Try another login ID.'; return; }
-  const { error: e2 } = await sb.from('profiles').insert({ id: data.user.id, name, role: 'employee', login_id: lid });
+  const { error: e2 } = await sb.from('profiles').insert({ id: data.user.id, name, role: 'employee', login_id: lid, password: pw });
   if(e2){ msg.textContent = e2.message; return; }
   msg.textContent = 'Employee added: ' + lid;
   $('#neName').value = $('#neId').value = $('#nePw').value = '';
