@@ -669,7 +669,7 @@ function render(){
       row.innerHTML = `<div class="tt"><b>Task ${slot}${t.prepaid?' · Prepaid':''}</b><span>${t.title} · ₹${t.reward}</span></div>` +
         `<button class="btn ghost" data-open="${slot}">Open</button>` +
         (done ? `<button class="btn gold" disabled style="opacity:.85">Done ✓</button>` :
-        `<button class="btn gold" data-done="${slot}"${canDone ? '' : ' disabled style="opacity:.45"'}>Done</button>`);
+        `<button class="btn gold" data-done="${slot}"${canDone ? '' : ' style="opacity:.45"'}>Done</button>`);
     }
     list.appendChild(row);
   });
@@ -709,12 +709,18 @@ function render(){
 }
 async function markDone(slot){
   if(myDone.has(slot)){ if(slot === 3){ location.href = TG_LINK; } return; }
-  if(slot !== 3 && !opened.has(slot)){ alert('Open the task link first, then tap Done.'); return; }
+  // Done stays locked until the employee has opened today's link (Task 3 has
+  // no gate). The button is dimmed but tappable, so this tap explains the
+  // gate with a toast instead of sitting silent (client report 2026-11-15:
+  // "no pop on tapping done" — a disabled button fires nothing at all).
+  if(slot !== 3 && !opened.has(slot)){ showToast('Open the task link first, then tap Done.'); return; }
+  // Show the screenshot popup the moment Done is tapped — it must never
+  // depend on the network round-trip finishing first.
+  if(slot !== 3) $('#shotPop').classList.add('show');
   const { error } = await sb.from('completions').insert({ employee: me.id, day: todayIST(), slot });
-  if(error){ alert(error.message); return; }
+  if(error){ $('#shotPop').classList.remove('show'); alert(error.message); return; }
   myDone.add(slot); render();
   if(slot === 3){ location.href = TG_LINK; return; }
-  $('#shotPop').classList.add('show');
 }
 $('#shotPopOk').onclick = () => $('#shotPop').classList.remove('show');
 $('#shotPop').addEventListener('click', e => { if(e.target.id==='shotPop') e.target.classList.remove('show'); });
@@ -775,7 +781,8 @@ _toast.textContent = 'Coming soon';
 _toast.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translate(-50%,16px);z-index:300;padding:11px 22px;border-radius:999px;background:rgba(16,24,20,.92);border:1px solid rgba(255,255,255,.16);color:#F3EFE6;font-size:14px;opacity:0;pointer-events:none;transition:opacity .3s ease,transform .3s ease;backdrop-filter:blur(8px)';
 document.body.appendChild(_toast);
 let _toastT;
-function showSoon(){ _toast.style.opacity = '1'; _toast.style.transform = 'translate(-50%,0)'; clearTimeout(_toastT); _toastT = setTimeout(() => { _toast.style.opacity = '0'; _toast.style.transform = 'translate(-50%,16px)'; }, 1800); }
+function showToast(msg){ _toast.textContent = msg; _toast.style.opacity = '1'; _toast.style.transform = 'translate(-50%,0)'; clearTimeout(_toastT); _toastT = setTimeout(() => { _toast.style.opacity = '0'; _toast.style.transform = 'translate(-50%,16px)'; }, 2200); }
+function showSoon(){ showToast('Coming soon'); }
 document.querySelectorAll('.rail a:not(.active), .icon-btn').forEach(a => a.addEventListener('click', e => { e.preventDefault(); showSoon(); }));
 boot();
 
