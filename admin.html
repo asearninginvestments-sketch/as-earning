@@ -795,7 +795,7 @@ async function decide(wdId, ok){
   const w = wds.find(x=>x.id===wdId); if(!w) return;
   if(ok){
     const { error } = await sb.from('coin_ledger').insert({
-      employee: w.employee, amount: -w.amount, type: 'withdraw_paid', actor: me.id, note: 'Withdrawal' });
+      employee: w.employee, amount: -w.amount, type: 'withdraw_paid', actor: me.id, note: 'Approved' });
     if(error){ alert(error.message); return; }
   }
   const { error } = await sb.from('withdrawals').update({

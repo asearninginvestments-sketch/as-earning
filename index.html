@@ -545,7 +545,7 @@
       <div class="week-nums">
         <div class="m"><b id="wkEarned">+150</b><span>Earned</span></div>
         <div class="m"><b id="wkDone">0/3</b><span>Tasks done</span></div>
-        <div class="m"><b id="wkOut">0</b><span>Withdrawn</span></div>
+        <div class="m"><b id="wkOut">0</b><span>Approved</span></div>
       </div>
       <div class="arow" style="margin-top:16px"><span style="flex:1">Last request</span><span class="status paid" id="wkReq">None</span></div>
     </section>
@@ -707,13 +707,13 @@ function render(){
   $('#wkOut').textContent = wds.filter(w=>w.status==='paid').reduce((a,w)=>a+w.amount,0);
   const last = wds[0];
   const rq = $('#wkReq');
-  rq.textContent = last ? (last.amount + ' · ' + last.status) : 'None';
+  rq.textContent = last ? (last.amount + ' · ' + (last.status==='paid' ? 'Approved · Est. 24 hours' : last.status)) : 'None';
   rq.className = 'status ' + (last ? (last.status==='paid' ? 'paid' : 'pend') : 'paid');
-  const labels = { admin_add:'Added by admin', admin_remove:'Removed by admin', task_reward:'Task reward', withdraw_paid:'Withdrawal' };
+  const labels = { admin_add:'Added by admin', admin_remove:'Removed by admin', task_reward:'Task reward', withdraw_paid:'Approved' };
   const hist = $('#histList'); hist.innerHTML = '';
   ledger.slice(0,15).forEach(r => {
     const d = document.createElement('div'); d.className = 'arow';
-    d.innerHTML = `<span style="flex:1">${labels[r.type]||r.type}${r.note?' · '+r.note:''}</span><b class="${r.amount>=0?'pos':'neg'}">${r.amount>=0?'+':''}${r.amount}</b>`;
+    d.innerHTML = `<span style="flex:1">${labels[r.type]||r.type}${r.type==='withdraw_paid'?' · Estimated time: 24 hours':(r.note?' · '+r.note:'')}</span><b class="${r.amount>=0?'pos':'neg'}">${r.amount>=0?'+':''}${r.amount}</b>`;
     hist.appendChild(d);
   });
   if(!ledger.length) hist.innerHTML = '<div class="arow"><span style="flex:1">No activity yet</span></div>';
