@@ -671,6 +671,16 @@ function render(){
     const det = document.createElement('div'); det.id = 'det-' + e.id;
     det.style.cssText = 'display:none;padding:10px 14px;margin:-4px 0 10px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);font-size:14px';
     det.innerHTML = `<div>Login ID: <b>${esc(e.login_id || '')}</b></div><div style="margin-top:4px">Password: <b>${e.password ? esc(e.password) : 'Not saved — created before passwords were stored'}</b></div>` +
+      `<div style="margin-top:14px;border-top:1px solid rgba(255,255,255,.08);padding-top:12px">` +
+      `<div style="font-weight:600">Withdraw scanner</div>` +
+      (e.qr_path
+        ? `<img data-qrimg="${e.id}" alt="Scanner" style="width:150px;max-width:60%;border-radius:10px;margin-top:8px;background:#fff;display:block">`
+        : `<div style="opacity:.6;font-size:12.5px;margin-top:6px">No scanner posted yet</div>`) +
+      `<div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">` +
+      `<input type="file" accept="image/png,image/jpeg,image/webp" data-qrfile="${e.id}" style="font-size:12.5px;max-width:210px">` +
+      `<button class="btn gold" data-qrup="${e.id}">Upload</button>` +
+      (e.qr_path ? `<button class="btn" data-qrrm="${e.id}">Remove</button>` : ``) +
+      `</div><div data-qrmsg="${e.id}" style="font-size:12.5px;margin-top:8px;min-height:15px;color:#F29B7E"></div></div>` +
       `<div style="margin-top:12px"><button data-del="${e.id}" style="padding:8px 16px;border-radius:999px;border:1px solid rgba(255,120,100,.55);background:rgba(255,90,70,.12);color:#FF9B8A;font-size:13px;font-weight:600;cursor:pointer">Remove employee</button></div>`;
     el.appendChild(det);
   });
@@ -681,6 +691,14 @@ function render(){
   el.querySelectorAll('[data-ad]').forEach(b => b.onclick = () => moveCoins(b.dataset.ad, 50));
   el.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => moveCoins(b.dataset.rm, -50));
   el.querySelectorAll('[data-del]').forEach(b => b.onclick = () => askRemove(b.dataset.del));
+  el.querySelectorAll('[data-qrup]').forEach(b => b.onclick = () => uploadQr(b.dataset.qrup));
+  el.querySelectorAll('[data-qrrm]').forEach(b => b.onclick = () => removeQr(b.dataset.qrrm));
+  // scanner previews: the bucket is private, so swap in signed URLs
+  emps.filter(e => e.active && e.qr_path).forEach(async e => {
+    const { data } = await sb.storage.from('withdraw-qr').createSignedUrl(e.qr_path, 3600);
+    const img = el.querySelector(`[data-qrimg="${e.id}"]`);
+    if(img && data && data.signedUrl) img.src = data.signedUrl;
+  });
   // tasks (editable slots 1 & 2; Task 3 is the fixed receptionist redirect)
   const tl = $('#aTaskList'); tl.innerHTML = '';
   [1,2].forEach(slot => {
@@ -801,6 +819,48 @@ async function decide(wdId, ok){
   const { error } = await sb.from('withdrawals').update({
     status: ok ? 'paid' : 'rejected', decided_at: new Date().toISOString(), decided_by: me.id }).eq('id', wdId);
   if(error){ alert(error.message); return; }
+  await loadAll();
+}
+// ---- withdraw scanner: one image per employee in the private withdraw-qr
+// bucket at <employee_id>/qr.<ext>; profiles.qr_path points at it and the
+// employee page shows it in the Withdraw tab. Type is sniffed from the
+// file's magic bytes — the name/MIME the browser reports is not trusted.
+function sniffImage(b){
+  if(b.length > 3 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) return 'png';
+  if(b.length > 2 && b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return 'jpg';
+  if(b.length > 11 && b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 &&
+     b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return 'webp';
+  return null;
+}
+async function uploadQr(empId){
+  const msg = document.querySelector(`[data-qrmsg="${empId}"]`);
+  const say = t => { if(msg) msg.textContent = t; };
+  const input = document.querySelector(`[data-qrfile="${empId}"]`);
+  const file = input && input.files && input.files[0];
+  if(!file){ say('Choose an image first.'); return; }
+  if(file.size > 5 * 1024 * 1024){ say('Image is larger than 5 MB.'); return; }
+  const ext = sniffImage(new Uint8Array(await file.arrayBuffer()));
+  if(!ext){ say('That file is not a PNG, JPG or WebP image.'); return; }
+  const path = empId + '/qr.' + ext;
+  const mime = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' }[ext];
+  const { error } = await sb.storage.from('withdraw-qr').upload(path, file, { upsert: true, contentType: mime });
+  if(error){ say(error.message); return; }
+  const emp = emps.find(x => x.id === empId);
+  if(emp && emp.qr_path && emp.qr_path !== path) await sb.storage.from('withdraw-qr').remove([emp.qr_path]);
+  const { error: e2 } = await sb.from('profiles').update({ qr_path: path }).eq('id', empId);
+  if(e2){ say(e2.message); return; }
+  await loadAll();
+}
+async function removeQr(empId){
+  const msg = document.querySelector(`[data-qrmsg="${empId}"]`);
+  const say = t => { if(msg) msg.textContent = t; };
+  const emp = emps.find(x => x.id === empId);
+  if(emp && emp.qr_path){
+    const { error } = await sb.storage.from('withdraw-qr').remove([emp.qr_path]);
+    if(error){ say(error.message); return; }
+  }
+  const { error } = await sb.from('profiles').update({ qr_path: null }).eq('id', empId);
+  if(error){ say(error.message); return; }
   await loadAll();
 }
 // create employee — temp client so the admin session is untouched

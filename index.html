@@ -362,6 +362,7 @@
   .wmsg{font-size:12px;color:#F29B7E;font-weight:500;margin-top:10px;min-height:15px}
   .wmsg.ok{color:var(--lime)}
   .wlbl{font-size:12px;color:var(--muted);font-weight:500;margin-top:10px}
+  .qrimg{width:100%;max-width:300px;border-radius:14px;margin-top:12px;border:1px solid rgba(255,255,255,.1);background:#fff}
   .week-nums{display:flex;justify-content:space-between;margin-top:14px}
   .week-nums .m b{font-size:22px;font-weight:700;display:block}
   .week-nums .m span{font-size:11px;color:var(--muted);font-weight:500}
@@ -387,7 +388,7 @@
     .rail{order:1;margin:0 12px;position:relative;left:auto;top:auto}
     .panel{margin:0 12px}
     #aOver{order:2} #aEmps{order:3} #aWd{order:4} #aTasks{order:5} #aAct{order:6}
-    #eBal{order:2} #eTasks{order:3} #eWd{order:4} #eWeek{order:5} #eHist{order:6}
+    #eBal{order:2} #eTasks{order:3} #eQr{order:3} #eWd{order:4} #eWeek{order:5} #eWdReq{order:5} #eHist{order:6}
   }
   @media (max-width:700px){
     .tile{padding:18px}
@@ -534,13 +535,13 @@
 
   <!-- EMPLOYEE DOCK -->
   <div class="dock only-emp">
-    <section class="panel tile tasks-wide initial" id="eTasks">
+    <section class="panel tile tasks-wide initial dash-view" id="eTasks">
       <div class="head"><h3>Tasks</h3></div>
       <div id="eTaskList"></div>
     
       <div class="wlbl" style="margin-top:12px">Do the task and send the screenshot to your receptionist on Telegram.</div>
     </section>
-    <section class="panel tile week-tile initial" id="eWeek">
+    <section class="panel tile week-tile initial dash-view" id="eWeek">
       <h3>This week</h3>
       <div class="week-nums">
         <div class="m"><b id="wkEarned">+150</b><span>Earned</span></div>
@@ -575,7 +576,7 @@
 
   <!-- RIGHT: EMPLOYEE -->
   <div class="right only-emp">
-    <section class="panel tile initial" id="eBal">
+    <section class="panel tile initial dash-view" id="eBal">
       <h3>My Coins</h3>
       <div class="bigbal"><div class="cic"><svg class="ph" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M184,89.57V84c0-25.08-37.83-44-88-44S8,58.92,8,84v40c0,20.89,26.25,37.49,64,42.46V172c0,25.08,37.83,44,88,44s88-18.92,88-44V132C248,111.3,222.58,94.68,184,89.57ZM232,132c0,13.22-30.79,28-72,28-3.73,0-7.43-.13-11.08-.37C170.49,151.77,184,139,184,124V105.74C213.87,110.19,232,122.27,232,132ZM72,150.25V126.46A183.74,183.74,0,0,0,96,128a183.74,183.74,0,0,0,24-1.54v23.79A163,163,0,0,1,96,152,163,163,0,0,1,72,150.25Zm96-40.32V124c0,8.39-12.41,17.4-32,22.87V123.5C148.91,120.37,159.84,115.71,168,109.93ZM96,56c41.21,0,72,14.78,72,28s-30.79,28-72,28S24,97.22,24,84,54.79,56,96,56ZM24,124V109.93c8.16,5.78,19.09,10.44,32,13.57v23.37C36.41,141.4,24,132.39,24,124Zm64,48v-4.17c2.63.1,5.29.17,8,.17,3.88,0,7.67-.13,11.39-.35A121.92,121.92,0,0,0,120,171.41v23.46C100.41,189.4,88,180.39,88,172Zm48,26.25V174.4a179.48,179.48,0,0,0,24,1.6,183.74,183.74,0,0,0,24-1.54v23.79a165.45,165.45,0,0,1-48,0Zm64-3.38V171.5c12.91-3.13,23.84-7.79,32-13.57V172C232,180.39,219.59,189.4,200,194.87Z"/></svg></div><div class="n"><span id="myBal">0</span> <small>coins</small></div></div>
       <div class="minirow">
@@ -583,13 +584,27 @@
         <div class="m"><b id="myPend">0</b><span>On hold</span></div>
       </div>
     </section>
-    <section class="panel tile initial" id="eWd">
+    <section class="panel tile wd-view" id="eQr" style="display:none">
+      <h3>Scanner</h3>
+      <div class="wlbl">Your payment scanner, posted by admin.</div>
+      <img id="qrImg" class="qrimg" alt="Payment scanner" style="display:none">
+      <div class="wlbl" id="qrEmpty">Your scanner will appear here</div>
+    </section>
+    <section class="panel tile wd-view" id="eWd" style="display:none">
       <h3>Withdraw</h3>
+      <div class="minirow">
+        <div class="m"><b id="wdBal">0</b><span>Balance</span></div>
+        <div class="m"><b id="wdAvail">0</b><span>Available</span></div>
+      </div>
       <div class="wform"><input id="wdAmt" type="number" min="0" placeholder="Amount"><button class="btn gold" id="wdGo">Withdraw</button></div>
       <div class="wlbl">Minimum 500 coins</div>
       <div class="wmsg" id="wdMsg"></div>
     </section>
-    <section class="panel tile initial" id="eHist" style="flex:1">
+    <section class="panel tile wd-view" id="eWdReq" style="display:none">
+      <div class="head"><h3>My requests</h3></div>
+      <div id="wdReqList"></div>
+    </section>
+    <section class="panel tile initial dash-view" id="eHist" style="flex:1">
       <div class="head"><h3>History</h3></div>
       <div id="histList"></div>
     </section>
@@ -709,6 +724,18 @@ function render(){
   const rq = $('#wkReq');
   rq.textContent = last ? (last.amount + ' · ' + (last.status==='paid' ? 'Approved · Est. 24 hours' : last.status)) : 'None';
   rq.className = 'status ' + (last ? (last.status==='paid' ? 'paid' : 'pend') : 'paid');
+  // withdraw tab: balance line + own requests with status
+  $('#wdBal').textContent = balance();
+  $('#wdAvail').textContent = available();
+  const rl = $('#wdReqList'); rl.innerHTML = '';
+  if(!wds.length) rl.innerHTML = '<div class="arow"><span style="flex:1">No requests yet</span></div>';
+  wds.forEach(w => {
+    const d = document.createElement('div'); d.className = 'arow';
+    const when = new Date(w.created_at).toLocaleDateString('en-IN', { day:'numeric', month:'short' });
+    const lbl = w.status === 'paid' ? 'Approved' : w.status === 'rejected' ? 'Rejected' : 'Pending';
+    d.innerHTML = `<span style="flex:1">${w.amount} coins · ${when}</span><span class="status ${w.status==='paid'?'paid':'pend'}">${lbl}</span>`;
+    rl.appendChild(d);
+  });
   const labels = { admin_add:'Added by admin', admin_remove:'Removed by admin', task_reward:'Task reward', withdraw_paid:'Approved' };
   const hist = $('#histList'); hist.innerHTML = '';
   ledger.slice(0,15).forEach(r => {
@@ -774,6 +801,19 @@ $('#wdGo').onclick = async () => {
   await loadAll();
 };
 
+// Withdraw tab scanner: the image the admin posted for this employee lives
+// in the private withdraw-qr bucket; profiles.qr_path points at it. No path
+// (or a failed sign) leaves the placeholder — never a broken image.
+async function loadQr(){
+  const img = $('#qrImg'), empty = $('#qrEmpty');
+  if(!img) return;
+  if(profile && profile.qr_path){
+    const { data } = await sb.storage.from('withdraw-qr').createSignedUrl(profile.qr_path, 3600);
+    if(data && data.signedUrl){ img.src = data.signedUrl; img.style.display = 'block'; empty.style.display = 'none'; return; }
+  }
+  img.style.display = 'none'; empty.style.display = '';
+}
+
 // ---- auth gate ----
 async function boot(){
   const { data } = await sb.auth.getSession();
@@ -787,6 +827,7 @@ async function boot(){
   $('#userName').textContent = p.name; $('#userRole').textContent = 'Employee · ' + (p.login_id || '');
   $('#userAva').textContent = initials(p.name);
   try { await loadAll(); } catch(e) { console.error(e); }
+  loadQr();
   reveal();
 }
 // Dashboard tiles start at opacity:0 (CSS .initial). Remove that class BEFORE
@@ -821,7 +862,21 @@ $('#alertOk').onclick = () => _alert.classList.remove('show');
 _alert.addEventListener('click', e => { if(e.target === _alert) _alert.classList.remove('show'); });
 // Sections without a function yet: tapping one shows "Coming soon"
 function showSoon(){ showAlert('Coming soon'); }
-document.querySelectorAll('.rail a:not(.active), .icon-btn').forEach(a => a.addEventListener('click', e => { e.preventDefault(); showSoon(); }));
+// Rail tabs: Dashboard (1st link) and Withdraw (4th link) switch views —
+// dashboard panels carry .dash-view, withdraw panels .wd-view. The other
+// sections still answer "Coming soon", as do the panel icon buttons.
+function setView(v){
+  document.querySelectorAll('.wd-view').forEach(el => el.style.display = v === 'withdraw' ? '' : 'none');
+  document.querySelectorAll('.dash-view').forEach(el => el.style.display = v === 'withdraw' ? 'none' : '');
+  document.querySelectorAll('.rail a').forEach((a, i) => a.classList.toggle('active', i === (v === 'withdraw' ? 3 : 0)));
+}
+document.querySelectorAll('.rail a').forEach((a, i) => a.addEventListener('click', e => {
+  e.preventDefault();
+  if(i === 0) setView('dash');
+  else if(i === 3) setView('withdraw');
+  else showSoon();
+}));
+document.querySelectorAll('.icon-btn').forEach(a => a.addEventListener('click', e => { e.preventDefault(); showSoon(); }));
 boot();
 
 </script>
